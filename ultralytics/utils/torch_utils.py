@@ -426,7 +426,8 @@ def get_flops(model, imgsz=640):
     except Exception:
         return 0.0
 
-#-----------------------------RGBT修改-----------------------------start
+
+# -----------------------------RGBT修改-----------------------------start
 def get_flops_with_torch_profiler(model, imgsz=640):
     """Compute model FLOPs (thop package alternative, but 2-10x slower unfortunately)."""
     if not TORCH_2_0:  # torch profiler implemented in torch>=2.0
@@ -451,10 +452,13 @@ def get_flops_with_torch_profiler(model, imgsz=640):
         flops = sum(x.flops for x in prof.key_averages()) / 1e9
     return flops
 
+
 def de_parallel(model):
     """De-parallelize a model: returns single-GPU model if model is of type DP or DDP."""
     return model.module if is_parallel(model) else model
-#-----------------------------RGBT修改-----------------------------end
+
+
+# -----------------------------RGBT修改-----------------------------end
 # def get_flops_with_torch_profiler(model, imgsz=640):
 #     """Compute model FLOPs using torch profiler (alternative to thop package, but 2-10x slower).
 #

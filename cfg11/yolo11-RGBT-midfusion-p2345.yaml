@@ -18,9 +18,9 @@ ch: 4
 # YOLOv8.0n backbone
 backbone:
   # [from, repeats, module, args]
-  - [-1, 1, Silence, []]  # 0-P1/2
+  - [-1, 1, Silence, []] # 0-P1/2
     # visible
-  - [0, 1, SilenceChannel, [0,3]]  # 1-P1/2
+  - [0, 1, SilenceChannel, [0, 3]] # 1-P1/2
   - [-1, 1, Conv, [64, 3, 2]] # 2-P1/2
   - [-1, 1, Conv, [128, 3, 2]] # 3-P2/4
   - [-1, 2, C3k2, [256, False, 0.25]]
@@ -32,25 +32,24 @@ backbone:
   - [-1, 2, C3k2, [1024, True]] # 10
 
   # infrared
-  - [ 0, 1, SilenceChannel, [ 3,4 ] ]  # 11-P1/2
-  - [ -1, 1, Conv, [ 64, 3, 2 ] ] # 12-P1/2
-  - [ -1, 1, Conv, [ 128, 3, 2 ] ] # 13-P2/4
-  - [ -1, 2, C3k2, [ 256, False, 0.25 ] ]
-  - [ -1, 1, Conv, [ 256, 3, 2 ] ] # 15-P3/8
-  - [ -1, 2, C3k2, [ 512, False, 0.25 ] ]
-  - [ -1, 1, Conv, [ 512, 3, 2 ] ] # 17-P4/16
-  - [ -1, 2, C3k2, [ 512, True ] ]
-  - [ -1, 1, Conv, [ 1024, 3, 2 ] ] # 19-P5/32
-  - [ -1, 2, C3k2, [ 1024, True ] ]  #20
+  - [0, 1, SilenceChannel, [3, 4]] # 11-P1/2
+  - [-1, 1, Conv, [64, 3, 2]] # 12-P1/2
+  - [-1, 1, Conv, [128, 3, 2]] # 13-P2/4
+  - [-1, 2, C3k2, [256, False, 0.25]]
+  - [-1, 1, Conv, [256, 3, 2]] # 15-P3/8
+  - [-1, 2, C3k2, [512, False, 0.25]]
+  - [-1, 1, Conv, [512, 3, 2]] # 17-P4/16
+  - [-1, 2, C3k2, [512, True]]
+  - [-1, 1, Conv, [1024, 3, 2]] # 19-P5/32
+  - [-1, 2, C3k2, [1024, True]] #20
 
-  - [[4, 14], 1, Concat, [1]]   # cat backbone P2  21 NEW
-  - [[6, 16], 1, Concat, [1]]  # cat backbone P3   22NEW
-  - [[8, 18], 1, Concat, [1]]  # cat backbone P4   23NEW
-  - [[10, 20], 1, Concat, [1]]  # cat backbone P5   24NEW
+  - [[4, 14], 1, Concat, [1]] # cat backbone P2  21 NEW
+  - [[6, 16], 1, Concat, [1]] # cat backbone P3   22NEW
+  - [[8, 18], 1, Concat, [1]] # cat backbone P4   23NEW
+  - [[10, 20], 1, Concat, [1]] # cat backbone P5   24NEW
 
-
-  - [ -1, 1, SPPF, [ 1024, 5 ] ] # 25
-  - [ -1, 2, C2PSA, [ 1024 ] ] # 26
+  - [-1, 1, SPPF, [1024, 5]] # 25
+  - [-1, 2, C2PSA, [1024]] # 26
 
 # YOLO11n head
 head:
@@ -62,9 +61,9 @@ head:
   - [[-1, 22], 1, Concat, [1]] # cat backbone P3
   - [-1, 2, C3k2, [256, False]] # 32
 
-  - [ -1, 1, nn.Upsample, [ None, 2, "nearest" ] ]
-  - [ [ -1, 21], 1, Concat, [ 1 ] ] # cat backbone P2
-  - [ -1, 2, C3k2, [ 128, False ] ] # 35 (P2/4-tiny)
+  - [-1, 1, nn.Upsample, [None, 2, "nearest"]]
+  - [[-1, 21], 1, Concat, [1]] # cat backbone P2
+  - [-1, 2, C3k2, [128, False]] # 35 (P2/4-tiny)
 
   - [-1, 1, Conv, [128, 3, 2]]
   - [[-1, 32], 1, Concat, [1]] # cat head P3
@@ -74,8 +73,8 @@ head:
   - [[-1, 29], 1, Concat, [1]] # cat head P4
   - [-1, 2, C3k2, [512, False]] # 41 (P4/16-medium)
 
-  - [ -1, 1, Conv, [ 512, 3, 2 ] ]
-  - [ [ -1, 26 ], 1, Concat, [ 1 ] ] # cat head P5
-  - [ -1, 2, C3k2, [ 1024, True ] ] # 44 (P5/32-large)
+  - [-1, 1, Conv, [512, 3, 2]]
+  - [[-1, 26], 1, Concat, [1]] # cat head P5
+  - [-1, 2, C3k2, [1024, True]] # 44 (P5/32-large)
 
   - [[35, 38, 41, 44], 1, Detect, [nc]] # Detect(P2, P3, P4, P5)

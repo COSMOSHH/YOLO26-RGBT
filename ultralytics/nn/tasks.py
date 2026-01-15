@@ -12,7 +12,6 @@ import torch.nn as nn
 
 from ultralytics.nn.autobackend import check_class_names
 from ultralytics.nn.modules import (
-    Silence, SilenceChannel, ChannelToNumber, NumberToChannel,# RGBT修改
     AIFI,
     C1,
     C2,
@@ -40,6 +39,7 @@ from ultralytics.nn.modules import (
     C3x,
     CBFuse,
     CBLinear,
+    ChannelToNumber,
     Classify,
     Concat,
     Conv,
@@ -56,6 +56,7 @@ from ultralytics.nn.modules import (
     ImagePoolingAttn,
     Index,
     LRPCHead,
+    NumberToChannel,
     Pose,
     Pose26,
     RepC3,
@@ -67,6 +68,7 @@ from ultralytics.nn.modules import (
     SCDown,
     Segment,
     Segment26,
+    SilenceChannel,
     TorchVision,
     WorldDetect,
     YOLOEDetect,

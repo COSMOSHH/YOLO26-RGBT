@@ -1,6 +1,6 @@
 # 测试代码
-from ultralytics. nn.modules import BidirectionalGate, GateSelector
 import torch
+from ultralytics.nn.modules import BidirectionalGate, GateSelector
 
 # 创建模块
 gate = BidirectionalGate(c1=512, reduction=16)
@@ -16,5 +16,5 @@ print(f"✅ BidirectionalGate: {len(outputs)} outputs")
 
 vis = selector0(outputs)
 ir = selector1(outputs)
-print(f"✅ GateSelector[0]: {vis. shape}")
+print(f"✅ GateSelector[0]: {vis.shape}")
 print(f"✅ GateSelector[1]: {ir.shape}")

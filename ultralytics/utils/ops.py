@@ -200,18 +200,19 @@ def clip_coords(coords, shape):
         coords[..., 1] = coords[..., 1].clip(0, h)  # y
     return coords
 
-#-----------------------------RGBT修改-----------------------------start
+
+# -----------------------------RGBT修改-----------------------------start
 def ensure_channels(masks):
-    """
-    Ensure the mask has 3 channels or 6 channels.
-    If masks have a single channel (grayscale), it will be repeated to 3 channels.
-    If masks have 4 channels (RGBA), it will be repeated to 6 channels.
+    """Ensure the mask has 3 channels or 6 channels. If masks have a single channel (grayscale), it will be repeated to
+    3 channels. If masks have 4 channels (RGBA), it will be repeated to 6 channels.
+
     Args:
         masks (np.array): Input mask array, shape can be (batch_size, h, w, c) or (h, w, c)
+
     Returns:
-        np.array: Processed mask with 3 or 6 channels
+        np.array: Processed mask with 3 or 6 channels.
     """
-    print("ensure_channels masks.shape=",masks.shape)
+    print("ensure_channels masks.shape=", masks.shape)
     # Check if the input masks have 4D shape (batch_size, h, w, c) or 3D shape (h, w, c)
     if len(masks.shape) == 4:
         # If it's 4D, check the batch dimension and process each mask in the batch
@@ -226,10 +227,9 @@ def ensure_channels(masks):
 
     return masks
 
+
 def process_mask_ensure(mask):
-    """
-    Process a single mask (2D or 3D) to ensure it has 3 or 6 channels.
-    """
+    """Process a single mask (2D or 3D) to ensure it has 3 or 6 channels."""
     # If the mask has only 1 channel, repeat it to 3 channels (grayscale to RGB)
     if mask.shape[-1] == 1:
         mask = np.repeat(mask, 3, axis=-1)  # Convert single-channel to 3-channel
@@ -241,9 +241,9 @@ def process_mask_ensure(mask):
         raise ValueError(f"Unexpected number of channels: {mask.shape[-1]}")
     return mask
 
+
 def scale_image(masks, im0_shape, ratio_pad=None):
-    """
-    Takes a mask, and resizes it to the original image size.
+    """Takes a mask, and resizes it to the original image size.
 
     Args:
         masks (np.ndarray): resized and padded masks/images, [h, w, num]/[h, w, 3].
@@ -278,7 +278,10 @@ def scale_image(masks, im0_shape, ratio_pad=None):
         masks = masks[:, :, None]
 
     return masks
-#-----------------------------RGBT修改-----------------------------end
+
+
+# -----------------------------RGBT修改-----------------------------end
+
 
 def xyxy2xywh(x):
     """Convert bounding box coordinates from (x1, y1, x2, y2) format to (x, y, width, height) format where (x1, y1) is
