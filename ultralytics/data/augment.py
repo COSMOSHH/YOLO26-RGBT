@@ -14,7 +14,7 @@ from PIL import Image
 from torch.nn import functional as F
 
 from ultralytics.data.utils import polygons2masks, polygons2masks_overlap
-from ultralytics.utils import LOGGER, IterableSimpleNamespace, colorstr
+from ultralytics.utils import LOGGER, colorstr
 from ultralytics.utils.checks import check_version
 from ultralytics.utils.instance import Instances
 from ultralytics.utils.metrics import bbox_ioa
@@ -454,13 +454,13 @@ class BaseMixTransform:
             label["texts"] = mix_texts
         return labels
 
-#-----------------------------RGBT修改-----------------------------start
-class Mosaic(BaseMixTransform):
-    """
-    Mosaic augmentation.
 
-    This class performs mosaic augmentation by combining multiple (4 or 9) images into a single mosaic image.
-    The augmentation is applied to a dataset with a given probability.
+# -----------------------------RGBT修改-----------------------------start
+class Mosaic(BaseMixTransform):
+    """Mosaic augmentation.
+
+    This class performs mosaic augmentation by combining multiple (4 or 9) images into a single mosaic image. The
+    augmentation is applied to a dataset with a given probability.
 
     Attributes:
         dataset: The dataset on which the mosaic augmentation is applied.
@@ -469,17 +469,17 @@ class Mosaic(BaseMixTransform):
         n (int, optional): The grid size, either 4 (for 2x2) or 9 (for 3x3).
     """
 
-    def __init__(self, dataset, imgsz=640, p=1.0, n=4,dtype=np.uint8):
+    def __init__(self, dataset, imgsz=640, p=1.0, n=4, dtype=np.uint8):
         """Initializes the object with a dataset, image size, probability, and border."""
-        assert 0 <= p <= 1.0, f'The probability should be in range [0, 1], but got {p}.'
-        assert n in (4, 9), 'grid must be equal to 4 or 9.'
+        assert 0 <= p <= 1.0, f"The probability should be in range [0, 1], but got {p}."
+        assert n in (4, 9), "grid must be equal to 4 or 9."
         super().__init__(dataset=dataset, p=p)
         self.dataset = dataset
         self.imgsz = imgsz
         self.border = (-imgsz // 2, -imgsz // 2)  # width, height
         self.n = n
-        self.dtype=dtype
-        self.gray_value=114 if dtype==np.uint8 else 114*256
+        self.dtype = dtype
+        self.gray_value = 114 if dtype == np.uint8 else 114 * 256
 
     def get_indexes(self, buffer=True):
         """Return a list of random indexes from the dataset."""
@@ -490,8 +490,8 @@ class Mosaic(BaseMixTransform):
 
     def _mix_transform(self, labels):
         """Apply mixup transformation to the input image and labels."""
-        assert labels.get('rect_shape', None) is None, 'rect and mosaic are mutually exclusive.'
-        assert len(labels.get('mix_labels', [])), 'There are no other images for mosaic augment.'
+        assert labels.get("rect_shape", None) is None, "rect and mosaic are mutually exclusive."
+        assert len(labels.get("mix_labels", [])), "There are no other images for mosaic augment."
         return self._mosaic4(labels) if self.n == 4 else self._mosaic9(labels)
 
     def _mosaic4(self, labels):
@@ -500,17 +500,19 @@ class Mosaic(BaseMixTransform):
         s = self.imgsz
         yc, xc = (int(random.uniform(-x, 2 * s + x)) for x in self.border)  # mosaic center x, y
         for i in range(4):
-            labels_patch = labels if i == 0 else labels['mix_labels'][i - 1]
+            labels_patch = labels if i == 0 else labels["mix_labels"][i - 1]
             # Load image
-            img = labels_patch['img']
-            h, w = labels_patch.pop('resized_shape')
+            img = labels_patch["img"]
+            h, w = labels_patch.pop("resized_shape")
             # print(img.shape)
             # Place img in img4
             if i == 0:  # top left
-                if len(img.shape)==2:  # single channel
+                if len(img.shape) == 2:  # single channel
                     img4 = np.full((s * 2, s * 2, 1), self.gray_value, dtype=self.dtype)  # base image with 4 tiles
                 else:
-                    img4 = np.full((s * 2, s * 2, img.shape[2]), self.gray_value, dtype=self.dtype)  # base image with 4 tiles
+                    img4 = np.full(
+                        (s * 2, s * 2, img.shape[2]), self.gray_value, dtype=self.dtype
+                    )  # base image with 4 tiles
                 x1a, y1a, x2a, y2a = max(xc - w, 0), max(yc - h, 0), xc, yc  # xmin, ymin, xmax, ymax (large image)
                 x1b, y1b, x2b, y2b = w - (x2a - x1a), h - (y2a - y1a), w, h  # xmin, ymin, xmax, ymax (small image)
             elif i == 1:  # top right
@@ -523,8 +525,8 @@ class Mosaic(BaseMixTransform):
                 x1a, y1a, x2a, y2a = xc, yc, min(xc + w, s * 2), min(s * 2, yc + h)
                 x1b, y1b, x2b, y2b = 0, 0, min(w, x2a - x1a), min(y2a - y1a, h)
 
-            if len(img.shape)==2:  # single channel
-                img4[y1a:y2a, x1a:x2a] = img[y1b:y2b, x1b:x2b,np.newaxis]  # img4[ymin:ymax, xmin:xmax]
+            if len(img.shape) == 2:  # single channel
+                img4[y1a:y2a, x1a:x2a] = img[y1b:y2b, x1b:x2b, np.newaxis]  # img4[ymin:ymax, xmin:xmax]
             else:
                 img4[y1a:y2a, x1a:x2a] = img[y1b:y2b, x1b:x2b]  # img4[ymin:ymax, xmin:xmax]
             padw = x1a - x1b
@@ -533,7 +535,7 @@ class Mosaic(BaseMixTransform):
             labels_patch = self._update_labels(labels_patch, padw, padh)
             mosaic_labels.append(labels_patch)
         final_labels = self._cat_labels(mosaic_labels)
-        final_labels['img'] = img4
+        final_labels["img"] = img4
         return final_labels
 
     def _mosaic9(self, labels):
@@ -542,14 +544,16 @@ class Mosaic(BaseMixTransform):
         s = self.imgsz
         hp, wp = -1, -1  # height, width previous
         for i in range(9):
-            labels_patch = labels if i == 0 else labels['mix_labels'][i - 1]
+            labels_patch = labels if i == 0 else labels["mix_labels"][i - 1]
             # Load image
-            img = labels_patch['img']
-            h, w = labels_patch.pop('resized_shape')
+            img = labels_patch["img"]
+            h, w = labels_patch.pop("resized_shape")
 
             # Place img in img9
             if i == 0:  # center
-                img9 = np.full((s * 3, s * 3, img.shape[2]),self.gray_value, dtype=self.dtype)  # base image with 4 tiles
+                img9 = np.full(
+                    (s * 3, s * 3, img.shape[2]), self.gray_value, dtype=self.dtype
+                )  # base image with 4 tiles
                 h0, w0 = h, w
                 c = s, s, s + w, s + h  # xmin, ymin, xmax, ymax (base) coordinates
             elif i == 1:  # top
@@ -573,7 +577,7 @@ class Mosaic(BaseMixTransform):
             x1, y1, x2, y2 = (max(x, 0) for x in c)  # allocate coords
 
             # Image
-            img9[y1:y2, x1:x2] = img[y1 - padh:, x1 - padw:]  # img9[ymin:ymax, xmin:xmax]
+            img9[y1:y2, x1:x2] = img[y1 - padh :, x1 - padw :]  # img9[ymin:ymax, xmin:xmax]
             hp, wp = h, w  # height, width previous for next iteration
 
             # Labels assuming imgsz*2 mosaic size
@@ -581,16 +585,16 @@ class Mosaic(BaseMixTransform):
             mosaic_labels.append(labels_patch)
         final_labels = self._cat_labels(mosaic_labels)
 
-        final_labels['img'] = img9[-self.border[0]:self.border[0], -self.border[1]:self.border[1]]
+        final_labels["img"] = img9[-self.border[0] : self.border[0], -self.border[1] : self.border[1]]
         return final_labels
 
     @staticmethod
     def _update_labels(labels, padw, padh):
         """Update labels."""
-        nh, nw = labels['img'].shape[:2]
-        labels['instances'].convert_bbox(format='xyxy')
-        labels['instances'].denormalize(nw, nh)
-        labels['instances'].add_padding(padw, padh)
+        nh, nw = labels["img"].shape[:2]
+        labels["instances"].convert_bbox(format="xyxy")
+        labels["instances"].denormalize(nw, nh)
+        labels["instances"].add_padding(padw, padh)
         return labels
 
     def _cat_labels(self, mosaic_labels):
@@ -601,20 +605,23 @@ class Mosaic(BaseMixTransform):
         instances = []
         imgsz = self.imgsz * 2  # mosaic imgsz
         for labels in mosaic_labels:
-            cls.append(labels['cls'])
-            instances.append(labels['instances'])
+            cls.append(labels["cls"])
+            instances.append(labels["instances"])
         final_labels = {
-            'im_file': mosaic_labels[0]['im_file'],
-            'ori_shape': mosaic_labels[0]['ori_shape'],
-            'resized_shape': (imgsz, imgsz),
-            'cls': np.concatenate(cls, 0),
-            'instances': Instances.concatenate(instances, axis=0),
-            'mosaic_border': self.border}  # final_labels
-        final_labels['instances'].clip(imgsz, imgsz)
-        good = final_labels['instances'].remove_zero_area_boxes()
-        final_labels['cls'] = final_labels['cls'][good]
+            "im_file": mosaic_labels[0]["im_file"],
+            "ori_shape": mosaic_labels[0]["ori_shape"],
+            "resized_shape": (imgsz, imgsz),
+            "cls": np.concatenate(cls, 0),
+            "instances": Instances.concatenate(instances, axis=0),
+            "mosaic_border": self.border,
+        }  # final_labels
+        final_labels["instances"].clip(imgsz, imgsz)
+        good = final_labels["instances"].remove_zero_area_boxes()
+        final_labels["cls"] = final_labels["cls"][good]
         return final_labels
-#-----------------------------RGBT修改-----------------------------end
+
+
+# -----------------------------RGBT修改-----------------------------end
 # class Mosaic(BaseMixTransform):
 #     """Mosaic augmentation for image datasets.
 #
@@ -976,12 +983,13 @@ class Mosaic(BaseMixTransform):
 #             final_labels["texts"] = mosaic_labels[0]["texts"]
 #         return final_labels
 
-#-----------------------------RGBT修改-----------------------------start
-class MixUp(BaseMixTransform):
 
-    def __init__(self, dataset, pre_transform=None, p=0.0,dtype=np.uint8) -> None:
+# -----------------------------RGBT修改-----------------------------start
+class MixUp(BaseMixTransform):
+    def __init__(self, dataset, pre_transform=None, p=0.0, dtype=np.uint8) -> None:
         super().__init__(dataset=dataset, pre_transform=pre_transform, p=p)
-        self.dtype=dtype
+        self.dtype = dtype
+
     def get_indexes(self):
         """Get a random index from the dataset."""
         return random.randint(0, len(self.dataset) - 1)
@@ -989,12 +997,14 @@ class MixUp(BaseMixTransform):
     def _mix_transform(self, labels):
         """Applies MixUp augmentation https://arxiv.org/pdf/1710.09412.pdf."""
         r = np.random.beta(32.0, 32.0)  # mixup ratio, alpha=beta=32.0
-        labels2 = labels['mix_labels'][0]
-        labels['img'] = (labels['img'] * r + labels2['img'] * (1 - r)).astype(self.dtype)
-        labels['instances'] = Instances.concatenate([labels['instances'], labels2['instances']], axis=0)
-        labels['cls'] = np.concatenate([labels['cls'], labels2['cls']], 0)
+        labels2 = labels["mix_labels"][0]
+        labels["img"] = (labels["img"] * r + labels2["img"] * (1 - r)).astype(self.dtype)
+        labels["instances"] = Instances.concatenate([labels["instances"], labels2["instances"]], axis=0)
+        labels["cls"] = np.concatenate([labels["cls"], labels2["cls"]], 0)
         return labels
-#-----------------------------RGBT修改-----------------------------end
+
+
+# -----------------------------RGBT修改-----------------------------end
 # class MixUp(BaseMixTransform):
 #     """Apply MixUp augmentation to image datasets.
 #
@@ -1520,18 +1530,18 @@ class RandomPerspective:
         ar = np.maximum(w2 / (h2 + eps), h2 / (w2 + eps))  # aspect ratio
         return (w2 > wh_thr) & (h2 > wh_thr) & (w2 * h2 / (w1 * h1 + eps) > area_thr) & (ar < ar_thr)  # candidates
 
-#-----------------------------RGBT修改-----------------------------start
-class RandomHSV:
 
-    def __init__(self, hgain=0.5, sgain=0.5, vgain=0.5,dtype=np.uint8 ) -> None:
+# -----------------------------RGBT修改-----------------------------start
+class RandomHSV:
+    def __init__(self, hgain=0.5, sgain=0.5, vgain=0.5, dtype=np.uint8) -> None:
         self.hgain = hgain
         self.sgain = sgain
         self.vgain = vgain
-        self.dtype=dtype
+        self.dtype = dtype
 
     def __call__(self, labels):
         """Applies random horizontal or vertical flip to an image with a given probability."""
-        img = labels['img']
+        img = labels["img"]
         if img.shape[-1] != 3:  # only apply to RGB images
             return labels
         if self.hgain or self.sgain or self.vgain:
@@ -1551,7 +1561,9 @@ class RandomHSV:
             im_hsv = cv2.merge((cv2.LUT(hue, lut_hue), cv2.LUT(sat, lut_sat), cv2.LUT(val, lut_val)))
             cv2.cvtColor(im_hsv, cv2.COLOR_HSV2BGR, dst=img)  # no return needed
         return labels
-#-----------------------------RGBT修改-----------------------------end
+
+
+# -----------------------------RGBT修改-----------------------------end
 # class RandomHSV:
 #     """Randomly adjust the Hue, Saturation, and Value (HSV) channels of an image.
 #
@@ -1627,16 +1639,17 @@ class RandomHSV:
 #             cv2.cvtColor(im_hsv, cv2.COLOR_HSV2BGR, dst=img)  # no return needed
 #         return labels
 
-#-----------------------------RGBT修改-----------------------------start
-class RandomBrightness:
 
-    def __init__(self, gain=0.5, dtype=np.uint8,p=0.2,use_transform=True):
+# -----------------------------RGBT修改-----------------------------start
+class RandomBrightness:
+    def __init__(self, gain=0.5, dtype=np.uint8, p=0.2, use_transform=True):
         self.gain = gain
         self.dtype = dtype
-        self.use_transform=use_transform
-        self.p=p
+        self.use_transform = use_transform
+        self.p = p
+
     def __call__(self, labels):
-        img = labels['img']
+        img = labels["img"]
         # print(self.dtype)
         # print(img.dtype)
         if self.gain:
@@ -1646,28 +1659,28 @@ class RandomBrightness:
                 lut = np.clip(x * r, 0, 255).astype(self.dtype)
                 img = cv2.LUT(img, lut)
             else:
-                if self.use_transform==True and  random.random() < self.p:
+                if self.use_transform and random.random() < self.p:
                     r = np.random.uniform(-1, 1) * self.gain + 1  # random gain
                     x = np.arange(0, 256, dtype=np.uint8)
                     lut = np.clip(x * r, 0, 255).astype(np.uint8)  # 将查找表转换为 np.uint8
                     img = cv2.LUT((img * 255).astype(np.uint8), lut)  # 将图像转换为 np.uint8 并应用查找表
                     img = img.astype(self.dtype) / np.max(img)  # 将图像转换回 np.float32
-            labels['img'] = img
+            labels["img"] = img
         return labels
 
-class CopyPaste:
 
-    def __init__(self, p=0.5,dtype=np.uint8) -> None:
+class CopyPaste:
+    def __init__(self, p=0.5, dtype=np.uint8) -> None:
         self.p = p
         self.dtype = dtype
 
     def __call__(self, labels):
         """Implement Copy-Paste augmentation https://arxiv.org/abs/2012.07177, labels as nx5 np.array(cls, xyxy)."""
-        im = labels['img']
-        cls = labels['cls']
+        im = labels["img"]
+        cls = labels["cls"]
         h, w = im.shape[:2]
-        instances = labels.pop('instances')
-        instances.convert_bbox(format='xyxy')
+        instances = labels.pop("instances")
+        instances.convert_bbox(format="xyxy")
         instances.denormalize(w, h)
         if self.p and len(instances.segments):
             n = len(instances)
@@ -1690,15 +1703,17 @@ class CopyPaste:
             i = cv2.flip(im_new, 1).astype(bool)
             im[i] = result[i]  # cv2.imwrite('debug.jpg', im)  # debug
 
-        labels['img'] = im
-        labels['cls'] = cls
-        labels['instances'] = instances
+        labels["img"] = im
+        labels["cls"] = cls
+        labels["instances"] = instances
         return labels
 
+
 try:
-    import albumentations as A
+    pass
 except:
     pass
+
 
 def make_odd(num):
     num = math.ceil(num)
@@ -1706,8 +1721,8 @@ def make_odd(num):
         num += 1
     return num
 
-class RandomHSV4C:
 
+class RandomHSV4C:
     def __init__(self, hgain=0.5, sgain=0.5, vgain=0.5, brightness_range=(0.5, 1.5)) -> None:
         self.hgain = hgain
         self.sgain = sgain
@@ -1715,8 +1730,8 @@ class RandomHSV4C:
         self.brightness_range = brightness_range
 
     def __call__(self, labels):
-        """Applies image HSV augmentation"""
-        img = labels['img']
+        """Applies image HSV augmentation."""
+        img = labels["img"]
         # print("img.shape=",img.shape)
         gray = img[:, :, 3]  # Extract the grayscale channel from the 4th channel
         bgr = img[:, :, :3]  # Extract the BGR channels
@@ -1745,12 +1760,11 @@ class RandomHSV4C:
 
             img[:, :, :3] = bgr_transformed  # Update the BGR channels with the transformed values
             img[:, :, 3] = gray  # Update the grayscale channel with adjusted brightness
-            labels['img']=img
+            labels["img"] = img
         return labels
 
 
 class RandomHSV6C:
-
     def __init__(self, hgain=0.5, sgain=0.5, vgain=0.5, brightness_range=(0.5, 1.5)) -> None:
         self.hgain = hgain
         self.sgain = sgain
@@ -1758,8 +1772,8 @@ class RandomHSV6C:
         self.brightness_range = brightness_range
 
     def __call__(self, labels):
-        """Applies image HSV augmentation"""
-        img = labels['img']
+        """Applies image HSV augmentation."""
+        img = labels["img"]
         gray = img[:, :, 3:]  # Extract the grayscale channel from the 4th channel
         bgr = img[:, :, :3]  # Extract the BGR channels
         if self.hgain or self.sgain or self.vgain:
@@ -1792,24 +1806,25 @@ class RandomHSV6C:
 
             img[:, :, :3] = bgr_transformed  # Update the BGR channels with the transformed values
             img[:, :, 3:] = bgr_transformed2  # Update the grayscale channel with adjusted brightness
-            labels['img']=img
+            labels["img"] = img
         return labels
 
 
 class Albumentations4C:
-    """Albumentations transformations. Optional, uninstall package to disable.
-    Applies Blur, Median Blur, convert to grayscale, Contrast Limited Adaptive Histogram Equalization,
-    random change of brightness and contrast, RandomGamma and lowering of image quality by compression."""
+    """Albumentations transformations. Optional, uninstall package to disable. Applies Blur, Median Blur, convert to
+    grayscale, Contrast Limited Adaptive Histogram Equalization, random change of brightness and contrast,
+    RandomGamma and lowering of image quality by compression.
+    """
 
     def __init__(self, p=1.0):
         """Initialize the transform object for YOLO bbox formatted params."""
         self.p = p
         self.transform = None
-        prefix = colorstr('albumentations: ')
+        prefix = colorstr("albumentations: ")
         try:
             import albumentations as A
 
-            check_version(A.__version__, '1.0.3', hard=True)  # version requirement
+            check_version(A.__version__, "1.0.3", hard=True)  # version requirement
 
             T = [
                 A.Blur(p=0.01),
@@ -1818,33 +1833,36 @@ class Albumentations4C:
                 # A.CLAHE(p=0.01),
                 A.RandomBrightnessContrast(p=0.0),
                 A.RandomGamma(p=0.0),
-                A.ImageCompression(quality_lower=75, p=0.0)]  # transforms
-            self.transform = A.Compose(T, bbox_params=A.BboxParams(format='yolo', label_fields=['class_labels']))
+                A.ImageCompression(quality_lower=75, p=0.0),
+            ]  # transforms
+            self.transform = A.Compose(T, bbox_params=A.BboxParams(format="yolo", label_fields=["class_labels"]))
 
-            LOGGER.info(prefix + ', '.join(f'{x}'.replace('always_apply=False, ', '') for x in T if x.p))
+            LOGGER.info(prefix + ", ".join(f"{x}".replace("always_apply=False, ", "") for x in T if x.p))
         except ImportError:  # package not installed, skip
             pass
         except Exception as e:
-            LOGGER.info(f'{prefix}{e}')
+            LOGGER.info(f"{prefix}{e}")
 
     def __call__(self, labels):
         """Generates object detections and returns a dictionary with detection results."""
-        im = labels['img']
-        cls = labels['cls']
+        im = labels["img"]
+        cls = labels["cls"]
         if len(cls):
-            labels['instances'].convert_bbox('xywh')
-            labels['instances'].normalize(*im.shape[:2][::-1])
-            bboxes = labels['instances'].bboxes
+            labels["instances"].convert_bbox("xywh")
+            labels["instances"].normalize(*im.shape[:2][::-1])
+            bboxes = labels["instances"].bboxes
             # TODO: add supports of segments and keypoints
             if self.transform and random.random() < self.p:
                 new = self.transform(image=im, bboxes=bboxes, class_labels=cls)  # transformed
-                if len(new['class_labels']) > 0:  # skip update if no bbox in new im
-                    labels['img'] = new['image']
-                    labels['cls'] = np.array(new['class_labels'])
-                    bboxes = np.array(new['bboxes'], dtype=np.float32)
-            labels['instances'].update(bboxes=bboxes)
+                if len(new["class_labels"]) > 0:  # skip update if no bbox in new im
+                    labels["img"] = new["image"]
+                    labels["cls"] = np.array(new["class_labels"])
+                    bboxes = np.array(new["bboxes"], dtype=np.float32)
+            labels["instances"].update(bboxes=bboxes)
         return labels
-#-----------------------------RGBT修改-----------------------------end
+
+
+# -----------------------------RGBT修改-----------------------------end
 
 
 class RandomFlip:
@@ -2383,10 +2401,9 @@ class Albumentations:
         return labels
 
 
-#-----------------------------RGBT修改-----------------------------start
+# -----------------------------RGBT修改-----------------------------start
 class Format:
-    """
-    A class for formatting image annotations for object detection, instance segmentation, and pose estimation tasks.
+    """A class for formatting image annotations for object detection, instance segmentation, and pose estimation tasks.
 
     This class standardizes image and instance annotations to be used by the `collate_fn` in PyTorch DataLoader.
 
@@ -2407,11 +2424,11 @@ class Format:
         _format_segments: Converts polygon points to bitmap masks.
 
     Examples:
-        >>> formatter = Format(bbox_format='xywh', normalize=True, return_mask=True)
+        >>> formatter = Format(bbox_format="xywh", normalize=True, return_mask=True)
         >>> formatted_labels = formatter(labels)
-        >>> img = formatted_labels['img']
-        >>> bboxes = formatted_labels['bboxes']
-        >>> masks = formatted_labels['masks']
+        >>> img = formatted_labels["img"]
+        >>> bboxes = formatted_labels["bboxes"]
+        >>> masks = formatted_labels["masks"]
     """
 
     def __init__(
@@ -2426,8 +2443,7 @@ class Format:
         batch_idx=True,
         bgr=0.0,
     ):
-        """
-        Initializes the Format class with given parameters for image and instance annotation formatting.
+        """Initializes the Format class with given parameters for image and instance annotation formatting.
 
         This class standardizes image and instance annotations for object detection, instance segmentation, and pose
         estimation tasks, preparing them for use in PyTorch DataLoader's `collate_fn`.
@@ -2455,7 +2471,7 @@ class Format:
             bgr (float): The probability to return BGR images.
 
         Examples:
-            >>> format = Format(bbox_format='xyxy', return_mask=True, return_keypoint=False)
+            >>> format = Format(bbox_format="xyxy", return_mask=True, return_keypoint=False)
             >>> print(format.bbox_format)
             xyxy
         """
@@ -2470,8 +2486,7 @@ class Format:
         self.bgr = bgr
 
     def __call__(self, labels):
-        """
-        Formats image annotations for object detection, instance segmentation, and pose estimation tasks.
+        """Formats image annotations for object detection, instance segmentation, and pose estimation tasks.
 
         This method standardizes the image and instance annotations to be used by the `collate_fn` in PyTorch
         DataLoader. It processes the input labels dictionary, converting annotations to the specified format and
@@ -2493,8 +2508,8 @@ class Format:
                 - 'batch_idx': Batch index tensor (if batch_idx is True).
 
         Examples:
-            >>> formatter = Format(bbox_format='xywh', normalize=True, return_mask=True)
-            >>> labels = {'img': np.random.rand(640, 640, 3), 'cls': np.array([0, 1]), 'instances': Instances(...)}
+            >>> formatter = Format(bbox_format="xywh", normalize=True, return_mask=True)
+            >>> labels = {"img": np.random.rand(640, 640, 3), "cls": np.array([0, 1]), "instances": Instances(...)}
             >>> formatted_labels = formatter(labels)
             >>> print(formatted_labels.keys())
         """
@@ -2537,8 +2552,7 @@ class Format:
         return labels
 
     def _format_img(self, img):
-        """
-        Formats an image for YOLO from a Numpy array to a PyTorch tensor.
+        """Formats an image for YOLO from a Numpy array to a PyTorch tensor.
 
         This function performs the following operations:
         1. Ensures the image has 3 dimensions (adds a channel dimension if needed).
@@ -2568,22 +2582,22 @@ class Format:
         # return img
         if len(img.shape) < 3:
             img = np.expand_dims(img, -1)
-        if (img.shape[2] == 1):
+        if img.shape[2] == 1:
             img = np.ascontiguousarray(img.transpose(2, 0, 1))
-        elif (img.shape[2] == 4):
+        elif img.shape[2] == 4:
             img3c = np.ascontiguousarray(img.transpose(2, 0, 1)[:3, :, :][::-1])
             img1c = img.transpose(2, 0, 1)[-1:, :, :]
             img = np.concatenate((img3c, img1c), axis=0)
             # img = torch.from_numpy(img)
             # ----------------------------   3 _format_img
-        elif (img.shape[2] == 6):
+        elif img.shape[2] == 6:
             img3c = np.ascontiguousarray(img.transpose(2, 0, 1)[:3, :, :][::-1])
-            img3c2 =  np.ascontiguousarray(img.transpose(2, 0, 1)[3:, :, :][::-1])
+            img3c2 = np.ascontiguousarray(img.transpose(2, 0, 1)[3:, :, :][::-1])
             img = np.concatenate((img3c, img3c2), axis=0)
         else:
             img = np.ascontiguousarray(img.transpose(2, 0, 1)[::-1])
             # 检查图像数据类型,如果图像数据类型不是 uint8，则转换为 float32
-        if img.dtype.kind == 'u' or img.dtype.kind == 'i':
+        if img.dtype.kind == "u" or img.dtype.kind == "i":
             # 如果是整数类型 (unsigned 'u' 或 signed 'i')
             if img.dtype != np.uint8:
                 # 如果不是 uint8，则转换为 float32, 并未归一化到 [0.0, 1.0]
@@ -2594,8 +2608,7 @@ class Format:
         return img
 
     def _format_segments(self, instances, cls, w, h):
-        """
-        Converts polygon segments to bitmap masks.
+        """Converts polygon segments to bitmap masks.
 
         Args:
             instances (Instances): Object containing segment information.
@@ -2605,9 +2618,9 @@ class Format:
 
         Returns:
             (tuple): Tuple containing:
-                masks (numpy.ndarray): Bitmap masks with shape (N, H, W) or (1, H, W) if mask_overlap is True.
-                instances (Instances): Updated instances object with sorted segments if mask_overlap is True.
-                cls (numpy.ndarray): Updated class labels, sorted if mask_overlap is True.
+            masks (numpy.ndarray): Bitmap masks with shape (N, H, W) or (1, H, W) if mask_overlap is True.
+            instances (Instances): Updated instances object with sorted segments if mask_overlap is True.
+            cls (numpy.ndarray): Updated class labels, sorted if mask_overlap is True.
 
         Notes:
             - If self.mask_overlap is True, masks are overlapped and sorted by area.
@@ -2624,7 +2637,9 @@ class Format:
             masks = polygons2masks((h, w), segments, color=1, downsample_ratio=self.mask_ratio)
 
         return masks, instances, cls
-#-----------------------------RGBT修改-----------------------------end
+
+
+# -----------------------------RGBT修改-----------------------------end
 # class Format:
 #     """A class for formatting image annotations for object detection, instance segmentation, and pose estimation tasks.
 #
@@ -3045,48 +3060,60 @@ class RandomLoadText:
         labels["texts"] = texts
         return labels
 
-#-----------------------------RGBT修改-----------------------------start
-def v8_transforms(dataset, imgsz, hyp,stretch=False):
+
+# -----------------------------RGBT修改-----------------------------start
+def v8_transforms(dataset, imgsz, hyp, stretch=False):
     """Convert images to a size suitable for YOLOv8 training."""
-    dtype=np.uint8 if hyp.use_simotm not in {"Gray16bit","Multispectral_16bit"} else np.float32
-    pre_transform = Compose([
-        Mosaic(dataset, imgsz=imgsz, p=hyp.mosaic,dtype=dtype),
-        CopyPaste(p=hyp.copy_paste,dtype=dtype ),
-        RandomPerspective(
-            degrees=hyp.degrees,
-            translate=hyp.translate,
-            scale=hyp.scale,
-            shear=hyp.shear,
-            perspective=hyp.perspective,
-            # pre_transform=LetterBox(new_shape=(imgsz, imgsz)),
-            pre_transform=None if stretch else LetterBox(new_shape=(imgsz, imgsz)),
-        )])
-    flip_idx = dataset.data.get('flip_idx', None)  # for keypoints augmentation
+    dtype = np.uint8 if hyp.use_simotm not in {"Gray16bit", "Multispectral_16bit"} else np.float32
+    pre_transform = Compose(
+        [
+            Mosaic(dataset, imgsz=imgsz, p=hyp.mosaic, dtype=dtype),
+            CopyPaste(p=hyp.copy_paste, dtype=dtype),
+            RandomPerspective(
+                degrees=hyp.degrees,
+                translate=hyp.translate,
+                scale=hyp.scale,
+                shear=hyp.shear,
+                perspective=hyp.perspective,
+                # pre_transform=LetterBox(new_shape=(imgsz, imgsz)),
+                pre_transform=None if stretch else LetterBox(new_shape=(imgsz, imgsz)),
+            ),
+        ]
+    )
+    flip_idx = dataset.data.get("flip_idx", None)  # for keypoints augmentation
     if dataset.use_keypoints:
-        kpt_shape = dataset.data.get('kpt_shape', None)
+        kpt_shape = dataset.data.get("kpt_shape", None)
         if flip_idx is None and hyp.fliplr > 0.0:
             hyp.fliplr = 0.0
             LOGGER.warning("WARNING ⚠️ No 'flip_idx' array defined in data.yaml, setting augmentation 'fliplr=0.0'")
         elif flip_idx and (len(flip_idx) != kpt_shape[0]):
-            raise ValueError(f'data.yaml flip_idx={flip_idx} length must be equal to kpt_shape[0]={kpt_shape[0]}')
-    alb=Albumentations(p=1.0) if dtype == np.uint8 else Albumentations(p=0)
-    random_hsv= RandomBrightness(gain=hyp.hsv_v, dtype=dtype, p=hyp.brightness) if hyp.channels == 1 else RandomHSV(
-            hgain=hyp.hsv_h, sgain=hyp.hsv_s, vgain=hyp.hsv_v, dtype=dtype)
+            raise ValueError(f"data.yaml flip_idx={flip_idx} length must be equal to kpt_shape[0]={kpt_shape[0]}")
+    alb = Albumentations(p=1.0) if dtype == np.uint8 else Albumentations(p=0)
+    random_hsv = (
+        RandomBrightness(gain=hyp.hsv_v, dtype=dtype, p=hyp.brightness)
+        if hyp.channels == 1
+        else RandomHSV(hgain=hyp.hsv_h, sgain=hyp.hsv_s, vgain=hyp.hsv_v, dtype=dtype)
+    )
 
-    if  hyp.channels == 4:
-        alb=Albumentations4C(p=1.0)
+    if hyp.channels == 4:
+        alb = Albumentations4C(p=1.0)
         random_hsv = RandomHSV4C(hgain=hyp.hsv_h, sgain=hyp.hsv_s, vgain=hyp.hsv_v)
-    if  hyp.channels == 6:
-        alb=Albumentations4C(p=1.0)
+    if hyp.channels == 6:
+        alb = Albumentations4C(p=1.0)
         random_hsv = RandomHSV6C(hgain=hyp.hsv_h, sgain=hyp.hsv_s, vgain=hyp.hsv_v)
-    return Compose([
-        pre_transform,
-        MixUp(dataset, pre_transform=pre_transform, p=hyp.mixup, dtype=dtype),
-        alb,
-        random_hsv,
-        RandomFlip(direction='vertical', p=hyp.flipud),
-        RandomFlip(direction='horizontal', p=hyp.fliplr, flip_idx=flip_idx)])  # transforms
-#-----------------------------RGBT修改-----------------------------end
+    return Compose(
+        [
+            pre_transform,
+            MixUp(dataset, pre_transform=pre_transform, p=hyp.mixup, dtype=dtype),
+            alb,
+            random_hsv,
+            RandomFlip(direction="vertical", p=hyp.flipud),
+            RandomFlip(direction="horizontal", p=hyp.fliplr, flip_idx=flip_idx),
+        ]
+    )  # transforms
+
+
+# -----------------------------RGBT修改-----------------------------end
 # def v8_transforms(dataset, imgsz: int, hyp: IterableSimpleNamespace, stretch: bool = False):
 #     """Apply a series of image transformations for training.
 #
@@ -3162,6 +3189,7 @@ def v8_transforms(dataset, imgsz, hyp,stretch=False):
 
 
 # Classification augmentations -----------------------------------------------------------------------------------------
+
 
 def classify_transforms(
     size: tuple[int, int] | int = 224,

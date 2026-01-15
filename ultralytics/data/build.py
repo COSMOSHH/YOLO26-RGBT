@@ -230,8 +230,8 @@ def build_yolo_dataset(
     rect: bool = False,
     stride: int = 32,
     multi_modal: bool = False,
-    use_simotm="RGB", # RGBT修改
-    pairs_rgb_ir= ['visible', 'infrared'], # RGBT修改
+    use_simotm="RGB",  # RGBT修改
+    pairs_rgb_ir=["visible", "infrared"],  # RGBT修改
 ) -> Dataset:
     """Build and return a YOLO dataset based on configuration parameters."""
     dataset = YOLOMultiModalDataset if multi_modal else YOLODataset
@@ -251,8 +251,8 @@ def build_yolo_dataset(
         classes=cfg.classes,
         data=data,
         fraction=cfg.fraction if mode == "train" else 1.0,
-        use_simotm=use_simotm, # RGBT修改
-        pairs_rgb_ir=pairs_rgb_ir, # RGBT修改
+        use_simotm=use_simotm,  # RGBT修改
+        pairs_rgb_ir=pairs_rgb_ir,  # RGBT修改
     )
 
 
@@ -398,9 +398,9 @@ def load_inference_source(
     vid_stride: int = 1,
     buffer: bool = False,
     channels: int = 3,
-    use_simotm="SimOTMBBS", # RGBT修改
-    imgsz=640, # RGBT修改
-    pairs_rgb_ir= ['visible', 'infrared'], # RGBT修改
+    use_simotm="SimOTMBBS",  # RGBT修改
+    imgsz=640,  # RGBT修改
+    pairs_rgb_ir=["visible", "infrared"],  # RGBT修改
 ):
     """Load an inference source for object detection and apply necessary transformations.
 
@@ -436,7 +436,15 @@ def load_inference_source(
     elif from_img:
         dataset = LoadPilAndNumpy(source, channels=channels)
     else:
-        dataset = LoadImagesAndVideos(source, batch=batch, vid_stride=vid_stride, channels=channels,use_simotm=use_simotm,imgsz=imgsz,pairs_rgb_ir=pairs_rgb_ir) # RGBT修改
+        dataset = LoadImagesAndVideos(
+            source,
+            batch=batch,
+            vid_stride=vid_stride,
+            channels=channels,
+            use_simotm=use_simotm,
+            imgsz=imgsz,
+            pairs_rgb_ir=pairs_rgb_ir,
+        )  # RGBT修改
 
     # Attach source types to the dataset
     setattr(dataset, "source_type", source_type)

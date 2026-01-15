@@ -56,10 +56,12 @@ def _log_tensorboard_graph(trainer) -> None:
     """
     # Input image
     imgsz = trainer.args.imgsz
-    channels = trainer.args.channels # RGBT修改
+    channels = trainer.args.channels  # RGBT修改
     imgsz = (imgsz, imgsz) if isinstance(imgsz, int) else imgsz
     p = next(trainer.model.parameters())  # for device, type
-    im = torch.zeros((1, channels, *imgsz), device=p.device, dtype=p.dtype)  # input image (must be zeros, not empty) # RGBT修改
+    im = torch.zeros(
+        (1, channels, *imgsz), device=p.device, dtype=p.dtype
+    )  # input image (must be zeros, not empty) # RGBT修改
 
     # Try simple method first (YOLO)
     try:

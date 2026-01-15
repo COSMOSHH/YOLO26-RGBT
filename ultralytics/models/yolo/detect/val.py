@@ -298,7 +298,16 @@ class DetectionValidator(BaseValidator):
         Returns:
             (Dataset): YOLO dataset.
         """
-        return build_yolo_dataset(self.args, img_path, batch, self.data, mode=mode, stride=self.stride, use_simotm=self.args.use_simotm,pairs_rgb_ir=self.args.pairs_rgb_ir) # RGBT 修改
+        return build_yolo_dataset(
+            self.args,
+            img_path,
+            batch,
+            self.data,
+            mode=mode,
+            stride=self.stride,
+            use_simotm=self.args.use_simotm,
+            pairs_rgb_ir=self.args.pairs_rgb_ir,
+        )  # RGBT 修改
 
     def get_dataloader(self, dataset_path: str, batch_size: int) -> torch.utils.data.DataLoader:
         """Construct and return dataloader.

@@ -1,17 +1,17 @@
 import warnings
 
-warnings.filterwarnings('ignore')
+warnings.filterwarnings("ignore")
 from ultralytics import YOLO
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     # image
-    '''
+    """
         source 需要和train/val目录一致，且需要包含visible字段，visible同级目录下存在infrared目录，原理是将visible替换为infrared，加载双光谱数据
 
         The source needs to be in the same directory as the train/val directories, and it must contain the "visible" field. 
         There is an "infrared" directory at the same level as the "visible" directory. 
         The principle is to replace "visible" with "infrared" and load the dual-spectrum data.
-    '''
+    """
     # model = YOLO(r"runs/rgbt3m_tinyfire_enhance/rgbt3m_tinyfire_enhance-yolo11-RGBT-midfusion-add.yaml-200epochs-/weights/best.pt") # select your model.pt path
     # model.predict(source=r'E:\files\Datasets\datasets\rgbt3m_tinyfire_enhance\split_data\images\visible\test\8703.jpg',
     #               imgsz=640,
@@ -45,16 +45,18 @@ if __name__ == '__main__':
 
     # # VIDEO
     model = YOLO(
-        R"runs/rgbt3m_tinyfire_enhance/rgbt3m_tinyfire_enhance-yolo11-RGBT-midfusion-add.yaml-200epochs-/weights/best.pt")  # select your model.pt path
-    model.predict(source=r"E:\files\Datasets\datasets\video\visible\total_video.mp4",
-                  imgsz=640,
-                  project='runs/detect',
-                  name='exp',
-                  show=True,
-                  save_frames=True,
-                  use_simotm="RGBT",
-                  channels=4,
-                  save=True,
-                  # conf=0.2,
-                  # visualize=True # visualize model features maps
-                  )
+        R"runs/rgbt3m_tinyfire_enhance/rgbt3m_tinyfire_enhance-yolo11-RGBT-midfusion-add.yaml-200epochs-/weights/best.pt"
+    )  # select your model.pt path
+    model.predict(
+        source=r"E:\files\Datasets\datasets\video\visible\total_video.mp4",
+        imgsz=640,
+        project="runs/detect",
+        name="exp",
+        show=True,
+        save_frames=True,
+        use_simotm="RGBT",
+        channels=4,
+        save=True,
+        # conf=0.2,
+        # visualize=True # visualize model features maps
+    )

@@ -194,7 +194,7 @@ class Annotator:
         font: str = "Arial.ttf",
         pil: bool = False,
         example: str = "abc",
-        use_simotm="RGBT", # RGBT修改
+        use_simotm="RGBT",  # RGBT修改
     ):
         """Initialize the Annotator class with image and line width along with color palette for keypoints and limbs."""
         non_ascii = not is_ascii(example)  # non-latin labels, i.e. asian, arabic, cyrillic
@@ -240,25 +240,19 @@ class Annotator:
                 # 检查图像是否为 RGBA 模式（即 4 通道）
                 if im_array.shape[2] == 4:
                     # 扩展为 6 通道，复制第四通道（Alpha 通道）到第五和第六通道
-                    extended_im_array = np.concatenate(
-                        [im_array, im_array[:, :, 3:4], im_array[:, :, 3:4]], axis=-1
-                    )
+                    extended_im_array = np.concatenate([im_array, im_array[:, :, 3:4], im_array[:, :, 3:4]], axis=-1)
                     # 创建一个新的 PIL.Image 对象
                     self.im = Image.fromarray(extended_im_array)
 
                     # print(f"Image is extended to 6 channels with shape {self.im.size} and mode {self.im.mode}")
                 elif len(im_array.shape) > 2 and im_array.shape[2] == 1:
-                    extended_im_array = np.concatenate(
-                        [im_array, im_array[:, :, 0], im_array[:, :, 0]], axis=-1
-                    )
+                    extended_im_array = np.concatenate([im_array, im_array[:, :, 0], im_array[:, :, 0]], axis=-1)
 
                     # 创建一个新的 PIL.Image 对象
                     self.im = Image.fromarray(extended_im_array)
                 elif len(im_array.shape) == 2:
                     im_array = np.expand_dims(im_array, axis=-1)
-                    extended_im_array = np.concatenate(
-                        [im_array, im_array, im_array], axis=-1
-                    )
+                    extended_im_array = np.concatenate([im_array, im_array, im_array], axis=-1)
 
                     # 创建一个新的 PIL.Image 对象
                     self.im = Image.fromarray(extended_im_array)
@@ -419,8 +413,7 @@ class Annotator:
 
     # -----------------------------RGBT修改-----------------------------start
     def box_label(self, box, label="", color=(128, 128, 128), txt_color=(255, 255, 255), rotated=False, training=False):
-        """
-        Draws a bounding box to image with label.
+        """Draws a bounding box to image with label.
 
         Args:
             box (tuple): The bounding box coordinates (x1, y1, x2, y2).
@@ -509,6 +502,7 @@ class Annotator:
                 fill=color,
             )
             draw.text((p1[0], p1[1] - h if outside else p1[1]), label, fill=txt_color, font=self.font)
+
     def _draw_on_cv2_image(self, image, box, label, color, txt_color, rotated):
         """
         Draws a box and label on an image.
@@ -521,7 +515,7 @@ class Annotator:
         :param rotated: Whether the box is rotated (not implemented in this example).
         """
         # print(image.dtype)
-        image=image.copy()
+        image = image.copy()
         image = image.copy()
         if image.ndim == 3 and image.shape[-1] != 3:
             # 如果通道数不是3，则只取前3个通道
@@ -532,7 +526,7 @@ class Annotator:
 
         if rotated:
             p1 = [int(b) for b in box[0]]
-            cv2.polylines(image, [np.asarray(box.cpu(), dtype=int)], True, color, self.lw) #8 OBB detect bug
+            cv2.polylines(image, [np.asarray(box.cpu(), dtype=int)], True, color, self.lw)  # 8 OBB detect bug
         else:
             # p1 = (int(box[0]), int(box[1]))
             # p2 = (int(box[2]), int(box[3]))
@@ -563,18 +557,15 @@ class Annotator:
                 self.sf,
                 txt_color,
                 thickness=self.tf,
-                lineType=cv2.LINE_AA
+                lineType=cv2.LINE_AA,
             )
-        return  image
+        return image
+
     # -----------------------------RGBT修改-----------------------------end
-
-
-
 
     # -----------------------------RGBT修改-----------------------------start
     def masks(self, masks, colors, im_gpu, alpha=0.5, retina_masks=False):
-        """
-        Plot masks on image.
+        """Plot masks on image.
 
         Args:
             masks (tensor): Predicted masks on cuda, shape: [n, h, w]
@@ -590,10 +581,10 @@ class Annotator:
             self.im = np.asarray(self.im).copy()
 
         # 扩展 im_gpu 的通道数
-        if len(im_gpu.shape)>2 and im_gpu.shape[0] == 4:
+        if len(im_gpu.shape) > 2 and im_gpu.shape[0] == 4:
             # 将 4 通道图像扩展为 6 通道，5 和 6 通道与第 4 通道相同
             im_gpu = torch.cat([im_gpu, im_gpu[3:4, :, :], im_gpu[3:4, :, :]], dim=0)
-        elif len(im_gpu.shape)==2:
+        elif len(im_gpu.shape) == 2:
             # 将 1 通道图像扩展为 3 通道，1 和 2 通道与第 3 通道相同
             im_gpu = torch.cat([im_gpu, im_gpu, im_gpu], dim=0)
 
@@ -633,13 +624,13 @@ class Annotator:
             im_gpu = im_gpu.permute(1, 2, 0).contiguous()  # shape(h, w, 3)
             im_gpu = im_gpu * inv_alpha_masks[-1] + mcs
 
-
         # 转换回 numpy 格式，处理图像并应用 mask
         im_mask = im_gpu * 255
         im_mask_np = im_mask.byte().cpu().numpy()
         # print("im_mask_np.shape=", im_mask_np.shape)
         # 更新 im
         self.im[:] = im_mask_np if retina_masks else ops.scale_image(im_mask_np, self.im.shape)
+
     # -----------------------------RGBT修改-----------------------------end
     # def masks(self, masks, colors, im_gpu: torch.Tensor = None, alpha: float = 0.5, retina_masks: bool = False):
     #     """Plot masks on image.
@@ -693,21 +684,19 @@ class Annotator:
 
     # -----------------------------RGBT修改-----------------------------start
     def kpts(self, kpts, shape=(640, 640), radius=5, kpt_line=True, conf_thres=0.25, kpt_color=None):
-        """
-        Plot keypoints on the image.
+        """Plot keypoints on the image.
 
         Args:
             kpts (tensor): Predicted keypoints with shape [17, 3]. Each keypoint has (x, y, confidence).
             shape (tuple): Image shape as a tuple (h, w), where h is the height and w is the width.
             radius (int, optional): Radius of the drawn keypoints. Default is 5.
-            kpt_line (bool, optional): If True, the function will draw lines connecting keypoints
-                                       for human pose. Default is True.
+            kpt_line (bool, optional): If True, the function will draw lines connecting keypoints for human pose.
+                Default is True.
             kpt_color (tuple, optional): The color of the keypoints (B, G, R).
 
-        Note:
+        Notes:
             `kpt_line=True` currently only supports human pose plotting.
         """
-
         if self.pil:
             # Convert to numpy first
             self.im = np.asarray(self.im).copy()
@@ -749,7 +738,6 @@ class Annotator:
                 if pos2[0] % shape[1] == 0 or pos2[1] % shape[0] == 0 or pos2[0] < 0 or pos2[1] < 0:
                     continue
 
-
                 if self.im.shape[2] == 6:
                     cv2.line(
                         rgb1,
@@ -784,6 +772,7 @@ class Annotator:
         if self.pil:
             # Convert im back to PIL and update draw
             self.fromarray(self.im)
+
     # -----------------------------RGBT修改-----------------------------end
     # def kpts(
     #     self,
@@ -1060,8 +1049,8 @@ def plot_images(
     max_subplots: int = 16,
     save: bool = True,
     conf_thres: float = 0.25,
-    use_simotm="RGBT", # RGBT修改
-    ir_show=False, # RGBT修改
+    use_simotm="RGBT",  # RGBT修改
+    ir_show=False,  # RGBT修改
 ) -> np.ndarray | None:
     """Plot image grid with labels, bounding boxes, masks, and keypoints.
 
@@ -1137,7 +1126,7 @@ def plot_images(
     for i in range(bs):
         x, y = int(w * (i // ns)), int(h * (i % ns))  # block origin
         im = images[i]
-        if (im.shape[0] == 4 or im.shape[0] == 6):
+        if im.shape[0] == 4 or im.shape[0] == 6:
             # im = im.transpose(1, 2, 0)[:, :, :3]
             #  'yzc 可以选择IR图像进行显示，在最后一个维度扩充1通道为3通道，如果ir_show为false则显示RGB'
             if ir_show:
@@ -1149,8 +1138,8 @@ def plot_images(
             im = im.transpose(1, 2, 0)
         else:
             im = im.transpose(1, 2, 0)[:, :, :3]  # crop multispectral images to first 3 channels
-        mosaic[y:y + h, x:x + w, :] = im
-        mosaic[y:y + h, x:x + w, :] = im
+        mosaic[y : y + h, x : x + w, :] = im
+        mosaic[y : y + h, x : x + w, :] = im
     # -----------------------------RGBT修改-----------------------------end
 
     # Resize (optional)
@@ -1163,7 +1152,9 @@ def plot_images(
     # Annotate
     fs = int((h + w) * ns * 0.01)  # font size
     fs = max(fs, 18)  # ensure that the font size is large enough to be easily readable.
-    annotator = Annotator(mosaic, line_width=round(fs / 10), font_size=fs, pil=True, example=str(names),use_simotm=use_simotm)  # RGBT修改
+    annotator = Annotator(
+        mosaic, line_width=round(fs / 10), font_size=fs, pil=True, example=str(names), use_simotm=use_simotm
+    )  # RGBT修改
     for i in range(bs):
         x, y = int(w * (i // ns)), int(h * (i % ns))  # block origin
         annotator.rectangle([x, y, x + w, y + h], None, (255, 255, 255), width=2)  # borders
@@ -1193,7 +1184,7 @@ def plot_images(
                     c = names.get(c, c) if names else c
                     if labels or conf[j] > conf_thres:
                         label = f"{c}" if labels else f"{c} {conf[j]:.1f}"
-                        annotator.box_label(box, label, color=color, rotated=is_obb, training=True) # RGBT修改
+                        annotator.box_label(box, label, color=color, rotated=is_obb, training=True)  # RGBT修改
 
             elif len(classes):
                 for c in classes:

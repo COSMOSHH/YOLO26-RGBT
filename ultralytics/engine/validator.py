@@ -117,7 +117,7 @@ class BaseValidator:
         self.iouv = None
         self.jdict = None
         self.speed = {"preprocess": 0.0, "inference": 0.0, "loss": 0.0, "postprocess": 0.0}
-        self.channels = self.args.channels # RGBT修改
+        self.channels = self.args.channels  # RGBT修改
         self.save_dir = save_dir or get_save_dir(self.args)
         (self.save_dir / "labels" if self.args.save_txt else self.save_dir).mkdir(parents=True, exist_ok=True)
         if self.args.conf is None:
