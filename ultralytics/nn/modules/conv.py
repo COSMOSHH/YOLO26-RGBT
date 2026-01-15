@@ -12,6 +12,7 @@ import torch.nn as nn
 __all__ = (
     "CBAM",
     "ChannelAttention",
+    "ChannelToNumber",
     "Concat",
     "Conv",
     "Conv2",
@@ -22,9 +23,11 @@ __all__ = (
     "GhostConv",
     "Index",
     "LightConv",
+    "NumberToChannel",
     "RepConv",
+    "Silence",  # RGBT修改
+    "SilenceChannel",
     "SpatialAttention",
-    'Silence', 'SilenceChannel', 'ChannelToNumber', 'NumberToChannel', # RGBT修改
 )
 
 
@@ -670,21 +673,24 @@ class Index(nn.Module):
         return x[self.index]
 
 
-
-#-----------------------------RGBT修改-----------------------------start
+# -----------------------------RGBT修改-----------------------------start
 class Silence(nn.Module):
     def __init__(self):
-        super(Silence, self).__init__()
+        super().__init__()
+
     def forward(self, x):
         return x
 
+
 class SilenceChannel(nn.Module):
-    def __init__(self,c_start, c_end):
-        super(SilenceChannel, self).__init__()
-        self.c_start=c_start
+    def __init__(self, c_start, c_end):
+        super().__init__()
+        self.c_start = c_start
         self.c_end = c_end
+
     def forward(self, x):
-        return x[...,self.c_start:self.c_end, :,:]
+        return x[..., self.c_start : self.c_end, :, :]
+
 
 # class SilenceLayer(nn.Module):
 #     def __init__(self,index):
@@ -694,9 +700,10 @@ class SilenceChannel(nn.Module):
 #     def forward(self, x):
 #         return x[self.index]
 
+
 class ChannelToNumber(nn.Module):
     def __init__(self):
-        super(ChannelToNumber, self).__init__()
+        super().__init__()
 
     def forward(self, x):
         n1 = x[:, :3, :, :]
@@ -704,13 +711,15 @@ class ChannelToNumber(nn.Module):
         combined_output = torch.cat((n1, n2), dim=0)  # 将结果拼接成(batch_size*2, 3, H, W)
         return combined_output
 
+
 class NumberToChannel(nn.Module):
     def __init__(self):
-        super(NumberToChannel, self).__init__()
+        super().__init__()
 
     def forward(self, x):
-
         x1, x2 = torch.chunk(x, 2, dim=0)  # 按照batch size分离成两个tensor
         combined_output = torch.cat((x1, x2), dim=1)  # 将两个tensor按通道合并   c_times_2, H, W)
         return combined_output
-#-----------------------------RGBT修改-----------------------------end
+
+
+# -----------------------------RGBT修改-----------------------------end

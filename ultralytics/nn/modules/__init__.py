@@ -63,6 +63,7 @@ from .block import (
 from .conv import (
     CBAM,
     ChannelAttention,
+    ChannelToNumber,
     Concat,
     Conv,
     Conv2,
@@ -73,9 +74,11 @@ from .conv import (
     GhostConv,
     Index,
     LightConv,
+    NumberToChannel,
     RepConv,
+    Silence,  # RGBT修改
+    SilenceChannel,
     SpatialAttention,
-    Silence,SilenceChannel,ChannelToNumber,NumberToChannel, #RGBT修改
 )
 from .head import (
     OBB,

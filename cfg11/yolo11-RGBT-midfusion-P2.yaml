@@ -18,21 +18,20 @@ ch: 4
 # YOLOv8.0n backbone
 backbone:
   # [from, repeats, module, args]
-  - [-1, 1, Silence, []]  # 0-P1/2
+  - [-1, 1, Silence, []] # 0-P1/2
     # visible
-  - [0, 1, SilenceChannel, [0,3]]  # 1-P1/2
+  - [0, 1, SilenceChannel, [0, 3]] # 1-P1/2
   - [-1, 1, Conv, [64, 3, 2]] # 2-P1/2
   - [-1, 1, Conv, [128, 3, 2]] # 3-P2/4
   - [-1, 2, C3k2, [256, False, 0.25]]
 
-
   # infrared
-  - [ 0, 1, SilenceChannel, [ 3,4 ] ]  # 5-P1/2
-  - [ -1, 1, Conv, [ 64, 3, 2 ] ] # 6-P1/2
-  - [ -1, 1, Conv, [ 128, 3, 2 ] ] # 7-P2/4
-  - [ -1, 2, C3k2, [ 256, False, 0.25 ] ]  # 8
+  - [0, 1, SilenceChannel, [3, 4]] # 5-P1/2
+  - [-1, 1, Conv, [64, 3, 2]] # 6-P1/2
+  - [-1, 1, Conv, [128, 3, 2]] # 7-P2/4
+  - [-1, 2, C3k2, [256, False, 0.25]] # 8
 
-  - [[4, 8], 1, Concat, [1]]  # cat backbone P2   9
+  - [[4, 8], 1, Concat, [1]] # cat backbone P2   9
 
   - [-1, 1, Conv, [256, 3, 2]] # 10-P3/8
   - [-1, 2, C3k2, [512, False, 0.25]]
@@ -40,8 +39,8 @@ backbone:
   - [-1, 2, C3k2, [512, True]] # 13
   - [-1, 1, Conv, [1024, 3, 2]] # 14-P5/32
   - [-1, 2, C3k2, [1024, True]] # 15
-  - [ -1, 1, SPPF, [ 1024, 5 ] ] # 16
-  - [ -1, 2, C2PSA, [ 1024 ] ] # 17
+  - [-1, 1, SPPF, [1024, 5]] # 16
+  - [-1, 2, C2PSA, [1024]] # 17
 
 # YOLO11n head
 head:

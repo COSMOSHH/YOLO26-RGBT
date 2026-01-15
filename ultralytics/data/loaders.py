@@ -17,11 +17,11 @@ import numpy as np
 import torch
 from PIL import Image
 
+from ultralytics.data.base import SimOTM, SimOTMBBS, SimOTMSSS  # RGBT修改
 from ultralytics.data.utils import FORMATS_HELP_MSG, IMG_FORMATS, VID_FORMATS
 from ultralytics.utils import IS_COLAB, IS_KAGGLE, LOGGER, ops
 from ultralytics.utils.checks import check_requirements
 from ultralytics.utils.patches import imread
-from ultralytics.data.base import SimOTM,SimOTMBBS,SimOTMSSS # RGBT修改
 
 
 @dataclass
@@ -341,7 +341,15 @@ class LoadImagesAndVideos:
         - Can read from a text file containing paths to images and videos.
     """
 
-    def __init__(self, path: str | Path | list, batch: int = 1, vid_stride: int = 1,use_simotm="SimOTMBBS",imgsz=640,pairs_rgb_ir= ['visible', 'infrared']):# RGBT修改
+    def __init__(
+        self,
+        path: str | Path | list,
+        batch: int = 1,
+        vid_stride: int = 1,
+        use_simotm="SimOTMBBS",
+        imgsz=640,
+        pairs_rgb_ir=["visible", "infrared"],
+    ):  # RGBT修改
         """Initialize dataloader for images and videos, supporting various input formats.
 
         Args:
@@ -351,15 +359,17 @@ class LoadImagesAndVideos:
             channels (int): Number of image channels (1 for grayscale, 3 for color).
         """
         parent = None
-        self.use_simotm = use_simotm # RGBT修改
-        self.imgsz = imgsz # RGBT修改
-        self.pairs_rgb_ir = pairs_rgb_ir # RGBT修改
+        self.use_simotm = use_simotm  # RGBT修改
+        self.imgsz = imgsz  # RGBT修改
+        self.pairs_rgb_ir = pairs_rgb_ir  # RGBT修改
         # 若 self.pairs_rgb_ir 不是长度为 2 的字符列表，则重置为默认值
-        if not (isinstance(self.pairs_rgb_ir, list) and
-                len(self.pairs_rgb_ir) == 2 and
-                all(isinstance(x, str) for x in self.pairs_rgb_ir)):
-            self.pairs_rgb_ir = ['visible', 'infrared']
-        self.augment = False # RGBT修改
+        if not (
+            isinstance(self.pairs_rgb_ir, list)
+            and len(self.pairs_rgb_ir) == 2
+            and all(isinstance(x, str) for x in self.pairs_rgb_ir)
+        ):
+            self.pairs_rgb_ir = ["visible", "infrared"]
+        self.augment = False  # RGBT修改
         if isinstance(path, str) and Path(path).suffix in {".txt", ".csv"}:  # txt/csv file with source paths
             parent, content = Path(path).parent, Path(path).read_text()
             path = content.splitlines() if Path(path).suffix == ".txt" else content.split(",")  # list of sources
@@ -411,7 +421,7 @@ class LoadImagesAndVideos:
     def __next__(self) -> tuple[list[str], list[np.ndarray], list[str]]:
         """Return the next batch of images or video frames with their paths and metadata."""
         paths, imgs, info = [], [], []
-        pairs_rgb, pairs_ir = self.pairs_rgb_ir # RGBT修改
+        pairs_rgb, pairs_ir = self.pairs_rgb_ir  # RGBT修改
         while len(imgs) < self.bs:
             if self.count >= self.nf:  # end of file list
                 if imgs:
@@ -470,24 +480,24 @@ class LoadImagesAndVideos:
                     # -----------------------------RGBT修改-----------------------------start
                     self.mode = "image"
                     # im0 = imread(path)  # BGR
-                    if self.use_simotm == 'Gray2BGR':
+                    if self.use_simotm == "Gray2BGR":
                         im0 = imread(path)  # BGR
-                    elif self.use_simotm == 'SimOTM':
+                    elif self.use_simotm == "SimOTM":
                         im0 = imread(path, cv2.IMREAD_GRAYSCALE)  # GRAY
                         im0 = SimOTM(im0)
-                    elif self.use_simotm == 'SimOTMBBS':
+                    elif self.use_simotm == "SimOTMBBS":
                         im0 = imread(path, cv2.IMREAD_GRAYSCALE)  # GRAY
                         im0 = SimOTMBBS(im0)
-                    elif self.use_simotm == 'Gray':
+                    elif self.use_simotm == "Gray":
                         im0 = imread(path, cv2.IMREAD_GRAYSCALE)  # GRAY
-                    elif self.use_simotm == 'Gray16bit':
+                    elif self.use_simotm == "Gray16bit":
                         im0 = imread(path, cv2.IMREAD_UNCHANGED)  # GRAY
                         im0 = im0.astype(np.float32)
-                    elif self.use_simotm == 'SimOTMSSS':
+                    elif self.use_simotm == "SimOTMSSS":
                         im0 = imread(path, cv2.IMREAD_UNCHANGED)  # TIF 16bit
                         im0 = im0.astype(np.float32)
                         im0 = SimOTMSSS(im0)
-                    elif self.use_simotm == 'RGBT':
+                    elif self.use_simotm == "RGBT":
                         im_visible = imread(path)  # BGR
                         im_infrared = imread(path.replace(pairs_rgb, pairs_ir), cv2.IMREAD_GRAYSCALE)  # BGR
 
@@ -500,22 +510,30 @@ class LoadImagesAndVideos:
                             # print(self.imgsz)
                             if r_vis != 1:  # if sizes are not equal
                                 interp = cv2.INTER_LINEAR if (self.augment or r_vis > 1) else cv2.INTER_AREA
-                                im_visible = cv2.resize(im_visible, (
-                                    min(math.ceil(w_vis * r_vis), self.imgsz),
-                                    min(math.ceil(h_vis * r_vis), self.imgsz)),
-                                                        interpolation=interp)
+                                im_visible = cv2.resize(
+                                    im_visible,
+                                    (
+                                        min(math.ceil(w_vis * r_vis), self.imgsz),
+                                        min(math.ceil(h_vis * r_vis), self.imgsz),
+                                    ),
+                                    interpolation=interp,
+                                )
                             if r_inf != 1:  # if sizes are not equal
                                 interp = cv2.INTER_LINEAR if (self.augment or r_inf > 1) else cv2.INTER_AREA
-                                im_infrared = cv2.resize(im_infrared, (
-                                    min(math.ceil(w_inf * r_inf), self.imgsz),
-                                    min(math.ceil(h_inf * r_inf), self.imgsz)),
-                                                         interpolation=interp)
+                                im_infrared = cv2.resize(
+                                    im_infrared,
+                                    (
+                                        min(math.ceil(w_inf * r_inf), self.imgsz),
+                                        min(math.ceil(h_inf * r_inf), self.imgsz),
+                                    ),
+                                    interpolation=interp,
+                                )
 
                         # 将彩色图像的三个通道分离
                         b, g, r = cv2.split(im_visible)
                         # 合并成四通道图像
                         im0 = cv2.merge((b, g, r, im_infrared))
-                    elif self.use_simotm == 'RGBRGB6C':
+                    elif self.use_simotm == "RGBRGB6C":
                         im_visible = imread(path)  # BGR
                         im_infrared = imread(path.replace(pairs_rgb, pairs_ir))  # BGR
 
@@ -523,30 +541,37 @@ class LoadImagesAndVideos:
                         h_inf, w_inf = im_infrared.shape[:2]  # orig hw
 
                         if h_vis != h_inf or w_vis != w_inf:
-
                             r_vis = self.imgsz / max(h_vis, w_vis)  # ratio
                             r_inf = self.imgsz / max(h_inf, w_inf)  # ratio
                             if r_vis != 1:  # if sizes are not equal
                                 interp = cv2.INTER_LINEAR if (self.augment or r_vis > 1) else cv2.INTER_AREA
-                                im_visible = cv2.resize(im_visible, (
-                                    min(math.ceil(w_vis * r_vis), self.imgsz),
-                                    min(math.ceil(h_vis * r_vis), self.imgsz)),
-                                                        interpolation=interp)
+                                im_visible = cv2.resize(
+                                    im_visible,
+                                    (
+                                        min(math.ceil(w_vis * r_vis), self.imgsz),
+                                        min(math.ceil(h_vis * r_vis), self.imgsz),
+                                    ),
+                                    interpolation=interp,
+                                )
                             if r_inf != 1:  # if sizes are not equal
                                 interp = cv2.INTER_LINEAR if (self.augment or r_inf > 1) else cv2.INTER_AREA
-                                im_infrared = cv2.resize(im_infrared, (
-                                    min(math.ceil(w_inf * r_inf), self.imgsz),
-                                    min(math.ceil(h_inf * r_inf), self.imgsz)),
-                                                         interpolation=interp)
+                                im_infrared = cv2.resize(
+                                    im_infrared,
+                                    (
+                                        min(math.ceil(w_inf * r_inf), self.imgsz),
+                                        min(math.ceil(h_inf * r_inf), self.imgsz),
+                                    ),
+                                    interpolation=interp,
+                                )
 
                         # 将彩色图像的三个通道分离
                         b, g, r = cv2.split(im_visible)
                         b2, g2, r2 = cv2.split(im_infrared)
                         # 合并成6通道图像
                         im0 = cv2.merge((b, g, r, b2, g2, r2))
-                    elif self.use_simotm == 'Multispectral':
+                    elif self.use_simotm == "Multispectral":
                         im0 = imread(path, cv2.IMREAD_COLOR)  # Multispectral
-                    elif self.use_simotm == 'Multispectral_16bit':
+                    elif self.use_simotm == "Multispectral_16bit":
                         im0 = imread(path, cv2.IMREAD_UNCHANGED)  # Multispectral  16bit
                     else:
                         im0 = imread(path)  # BGR
