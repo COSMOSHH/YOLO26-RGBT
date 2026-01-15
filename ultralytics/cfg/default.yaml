@@ -125,6 +125,13 @@ copy_paste_mode: flip # (str) copy-paste strategy for segmentation: flip or mixu
 auto_augment: randaugment # (str) classification auto augmentation policy: randaugment, autoaugment, augmix
 erasing: 0.4 # (float) random erasing probability for classification (0–0.9), <1.0
 
+#-----------------------------RGBT修改-----------------------------start
+channels: 1 # (int) channels of model
+use_simotm: SimOTMBBS # (str) Pretreatment method
+brightness: 0.2 # (float) image brightness (probability)
+pairs_rgb_ir: ['visible','infrared']
+#-----------------------------RGBT修改-----------------------------end
+
 # Custom config.yaml ---------------------------------------------------------------------------------------------------
 cfg: # (str, optional) path to a config.yaml that overrides defaults
 

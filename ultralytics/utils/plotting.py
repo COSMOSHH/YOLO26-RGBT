@@ -194,6 +194,7 @@ class Annotator:
         font: str = "Arial.ttf",
         pil: bool = False,
         example: str = "abc",
+        use_simotm="RGBT", # RGBT修改
     ):
         """Initialize the Annotator class with image and line width along with color palette for keypoints and limbs."""
         non_ascii = not is_ascii(example)  # non-latin labels, i.e. asian, arabic, cyrillic
@@ -226,6 +227,62 @@ class Annotator:
             self.im = im if im.flags.writeable else im.copy()
             self.tf = max(self.lw - 1, 1)  # font thickness
             self.sf = self.lw / 3  # font scale
+        # -----------------------------RGBT修改-----------------------------start
+        self.use_simotm = use_simotm
+        #   self.im 是一个 PIL.Image 对象
+        if isinstance(self.im, Image.Image):  # 确保 self.im 是 PIL.Image 对象
+            # 将 PIL.Image 转换为 NumPy 数组
+            # print(self.im.mode)
+            im_array = np.array(self.im)
+            if self.use_simotm == "Gray16bit":
+                im_array = (im_array / 256).astype(self.im.dtype)
+            if im_array is not None and len(im_array.shape) > 2:
+                # 检查图像是否为 RGBA 模式（即 4 通道）
+                if im_array.shape[2] == 4:
+                    # 扩展为 6 通道，复制第四通道（Alpha 通道）到第五和第六通道
+                    extended_im_array = np.concatenate(
+                        [im_array, im_array[:, :, 3:4], im_array[:, :, 3:4]], axis=-1
+                    )
+                    # 创建一个新的 PIL.Image 对象
+                    self.im = Image.fromarray(extended_im_array)
+
+                    # print(f"Image is extended to 6 channels with shape {self.im.size} and mode {self.im.mode}")
+                elif len(im_array.shape) > 2 and im_array.shape[2] == 1:
+                    extended_im_array = np.concatenate(
+                        [im_array, im_array[:, :, 0], im_array[:, :, 0]], axis=-1
+                    )
+
+                    # 创建一个新的 PIL.Image 对象
+                    self.im = Image.fromarray(extended_im_array)
+                elif len(im_array.shape) == 2:
+                    im_array = np.expand_dims(im_array, axis=-1)
+                    extended_im_array = np.concatenate(
+                        [im_array, im_array, im_array], axis=-1
+                    )
+
+                    # 创建一个新的 PIL.Image 对象
+                    self.im = Image.fromarray(extended_im_array)
+                elif im_array.shape[2] == 3 or im_array.shape[2] == 6:
+                    # print("Image does not have 4 or 1 channels, cannot extend to 6 or 3 channels.")
+                    # im_array = np.array(self.im)
+                    self.im = Image.fromarray(im_array)
+                    pass
+                else:
+                    print("Image does not have 1 or 3 or 4 or 6 channels, and cannot extend to 6 or 3 channels.")
+        else:
+            # print(self.im.shape)
+            # self.im = np.uint8(self.im / 256)
+            if self.use_simotm == "Gray16bit":
+                self.im = (self.im / 256).astype(self.im.dtype)
+            if self.im is not None and len(self.im.shape) == 3 and self.im.shape[2] == 4:
+                self.im = np.concatenate([self.im, self.im[..., 3:4], self.im[..., 3:4]], axis=-1)
+            elif self.im is not None and (len(self.im.shape) == 3 and self.im.shape[2] == 1):
+                self.im = np.concatenate([self.im, self.im, self.im], axis=-1)
+            elif self.im is not None and len(self.im.shape) == 2:
+                self.im = np.expand_dims(self.im, axis=-1)
+                self.im = np.concatenate([self.im, self.im, self.im], axis=-1)
+
+        # -----------------------------RGBT修改-----------------------------end
         # Pose
         self.skeleton = [
             [16, 14],
@@ -299,147 +356,365 @@ class Annotator:
         else:
             return txt_color
 
-    def box_label(self, box, label: str = "", color: tuple = (128, 128, 128), txt_color: tuple = (255, 255, 255)):
-        """Draw a bounding box on an image with a given label.
+    # def box_label(self, box, label: str = "", color: tuple = (128, 128, 128), txt_color: tuple = (255, 255, 255)):
+    #     """Draw a bounding box on an image with a given label.
+    #
+    #     Args:
+    #         box (tuple): The bounding box coordinates (x1, y1, x2, y2).
+    #         label (str, optional): The text label to be displayed.
+    #         color (tuple, optional): The background color of the rectangle (B, G, R).
+    #         txt_color (tuple, optional): The color of the text (R, G, B).
+    #
+    #     Examples:
+    #         >>> from ultralytics.utils.plotting import Annotator
+    #         >>> im0 = cv2.imread("test.png")
+    #         >>> annotator = Annotator(im0, line_width=10)
+    #         >>> annotator.box_label(box=[10, 20, 30, 40], label="person")
+    #     """
+    #     txt_color = self.get_txt_color(color, txt_color)
+    #     if isinstance(box, torch.Tensor):
+    #         box = box.tolist()
+    #
+    #     multi_points = isinstance(box[0], list)  # multiple points with shape (n, 2)
+    #     p1 = [int(b) for b in box[0]] if multi_points else (int(box[0]), int(box[1]))
+    #     if self.pil:
+    #         self.draw.polygon(
+    #             [tuple(b) for b in box], width=self.lw, outline=color
+    #         ) if multi_points else self.draw.rectangle(box, width=self.lw, outline=color)
+    #         if label:
+    #             w, h = self.font.getsize(label)  # text width, height
+    #             outside = p1[1] >= h  # label fits outside box
+    #             if p1[0] > self.im.size[0] - w:  # size is (w, h), check if label extend beyond right side of image
+    #                 p1 = self.im.size[0] - w, p1[1]
+    #             self.draw.rectangle(
+    #                 (p1[0], p1[1] - h if outside else p1[1], p1[0] + w + 1, p1[1] + 1 if outside else p1[1] + h + 1),
+    #                 fill=color,
+    #             )
+    #             # self.draw.text([box[0], box[1]], label, fill=txt_color, font=self.font, anchor='ls')  # for PIL>8.0
+    #             self.draw.text((p1[0], p1[1] - h if outside else p1[1]), label, fill=txt_color, font=self.font)
+    #     else:  # cv2
+    #         cv2.polylines(
+    #             self.im, [np.asarray(box, dtype=int)], True, color, self.lw
+    #         ) if multi_points else cv2.rectangle(
+    #             self.im, p1, (int(box[2]), int(box[3])), color, thickness=self.lw, lineType=cv2.LINE_AA
+    #         )
+    #         if label:
+    #             w, h = cv2.getTextSize(label, 0, fontScale=self.sf, thickness=self.tf)[0]  # text width, height
+    #             h += 3  # add pixels to pad text
+    #             outside = p1[1] >= h  # label fits outside box
+    #             if p1[0] > self.im.shape[1] - w:  # shape is (h, w), check if label extend beyond right side of image
+    #                 p1 = self.im.shape[1] - w, p1[1]
+    #             p2 = p1[0] + w, p1[1] - h if outside else p1[1] + h
+    #             cv2.rectangle(self.im, p1, p2, color, -1, cv2.LINE_AA)  # filled
+    #             cv2.putText(
+    #                 self.im,
+    #                 label,
+    #                 (p1[0], p1[1] - 2 if outside else p1[1] + h - 1),
+    #                 0,
+    #                 self.sf,
+    #                 txt_color,
+    #                 thickness=self.tf,
+    #                 lineType=cv2.LINE_AA,
+    #             )
+
+    # -----------------------------RGBT修改-----------------------------start
+    def box_label(self, box, label="", color=(128, 128, 128), txt_color=(255, 255, 255), rotated=False, training=False):
+        """
+        Draws a bounding box to image with label.
 
         Args:
             box (tuple): The bounding box coordinates (x1, y1, x2, y2).
-            label (str, optional): The text label to be displayed.
+            label (str): The text label to be displayed.
             color (tuple, optional): The background color of the rectangle (B, G, R).
             txt_color (tuple, optional): The color of the text (R, G, B).
-
-        Examples:
-            >>> from ultralytics.utils.plotting import Annotator
-            >>> im0 = cv2.imread("test.png")
-            >>> annotator = Annotator(im0, line_width=10)
-            >>> annotator.box_label(box=[10, 20, 30, 40], label="person")
+            rotated (bool, optional): Variable used to check if task is OBB
         """
+        if self.im is None:
+            return
         txt_color = self.get_txt_color(color, txt_color)
-        if isinstance(box, torch.Tensor):
-            box = box.tolist()
 
-        multi_points = isinstance(box[0], list)  # multiple points with shape (n, 2)
-        p1 = [int(b) for b in box[0]] if multi_points else (int(box[0]), int(box[1]))
-        if self.pil:
-            self.draw.polygon(
-                [tuple(b) for b in box], width=self.lw, outline=color
-            ) if multi_points else self.draw.rectangle(box, width=self.lw, outline=color)
-            if label:
-                w, h = self.font.getsize(label)  # text width, height
-                outside = p1[1] >= h  # label fits outside box
-                if p1[0] > self.im.size[0] - w:  # size is (w, h), check if label extend beyond right side of image
-                    p1 = self.im.size[0] - w, p1[1]
-                self.draw.rectangle(
-                    (p1[0], p1[1] - h if outside else p1[1], p1[0] + w + 1, p1[1] + 1 if outside else p1[1] + h + 1),
-                    fill=color,
-                )
-                # self.draw.text([box[0], box[1]], label, fill=txt_color, font=self.font, anchor='ls')  # for PIL>8.0
-                self.draw.text((p1[0], p1[1] - h if outside else p1[1]), label, fill=txt_color, font=self.font)
-        else:  # cv2
-            cv2.polylines(
-                self.im, [np.asarray(box, dtype=int)], True, color, self.lw
-            ) if multi_points else cv2.rectangle(
-                self.im, p1, (int(box[2]), int(box[3])), color, thickness=self.lw, lineType=cv2.LINE_AA
+        # Convert to numpy array if necessary
+        if isinstance(self.im, Image.Image):
+            im_array = np.array(self.im)
+        else:
+            im_array = self.im
+
+        # Handle 6-channel images
+        if im_array.shape[2] == 6:
+            rgb1 = im_array[:, :, :3]
+            rgb2 = im_array[:, :, 3:6]
+            if self.pil:
+                im1 = Image.fromarray(rgb1)
+                im2 = Image.fromarray(rgb2)
+                self._draw_on_image(im1, box, label, color, txt_color, rotated)
+                self._draw_on_image(im2, box, label, color, txt_color, rotated)
+                im_combined = Image.merge("RGB", (im1, im2))
+                self.im = np.array(im_combined)
+            else:
+                rgb1 = self._draw_on_cv2_image(rgb1, box, label, color, txt_color, rotated)
+                rgb2 = self._draw_on_cv2_image(rgb2, box, label, color, txt_color, rotated)
+                im_combined = np.concatenate((rgb1, rgb2), axis=2)
+                self.im = im_combined
+
+        # Handle 4-channel images
+        elif im_array.shape[2] == 4:
+            rgb = im_array[:, :, :3]
+            gray = im_array[:, :, 3]
+            if self.pil:
+                im_rgb = Image.fromarray(rgb)
+                im_gray = Image.fromarray(gray)
+                self._draw_on_image(im_rgb, box, label, color, txt_color, rotated)
+                self._draw_on_image(im_gray, box, label, color, txt_color, rotated)
+                # Recombine RGB and Gray channels
+                im_rgb_array = np.array(im_rgb)
+                im_gray_array = np.array(im_gray)
+                self.im = np.concatenate((im_rgb_array, np.expand_dims(im_gray_array, axis=-1)), axis=2)
+            else:
+                rgb = self._draw_on_cv2_image(rgb, box, label, color, txt_color, rotated)
+                # im_gray_colored = cv2.cvtColor(gray, cv2.COLOR_GRAY2BGR)
+                gray = self._draw_on_cv2_image(gray, box, label, color, txt_color, rotated)
+                # Recombine RGB and Gray channels
+                # gray_expanded = np.expand_dims(gray, axis=-1)
+                self.im = np.concatenate((rgb, gray), axis=2)
+
+        # Handle standard 3-channel or other cases
+        else:
+            if self.im is not None:
+                if training:
+                    if self.pil:
+                        self._draw_on_image(self.im, box, label, color, txt_color, rotated)
+                    else:
+                        self._draw_on_cv2_image(im_array, box, label, color, txt_color, rotated)
+                else:
+                    if self.pil:
+                        self.im = self._draw_on_image(self.im, box, label, color, txt_color, rotated)
+                    else:
+                        self.im = self._draw_on_cv2_image(im_array, box, label, color, txt_color, rotated)
+
+    def _draw_on_image(self, image, box, label, color, txt_color, rotated):
+        draw = ImageDraw.Draw(image)
+        if rotated:
+            p1 = box[0]
+            draw.polygon([tuple(b) for b in box], width=self.lw, outline=color)
+        else:
+            p1 = (box[0], box[1])
+            draw.rectangle(box, width=self.lw, outline=color)
+        if label:
+            w, h = self.font.getsize(label)
+            outside = p1[1] >= h
+            if p1[0] > image.size[0] - w:
+                p1 = image.size[0] - w, p1[1]
+            draw.rectangle(
+                (p1[0], p1[1] - h if outside else p1[1], p1[0] + w + 1, p1[1] + 1 if outside else p1[1] + h + 1),
+                fill=color,
             )
-            if label:
-                w, h = cv2.getTextSize(label, 0, fontScale=self.sf, thickness=self.tf)[0]  # text width, height
-                h += 3  # add pixels to pad text
-                outside = p1[1] >= h  # label fits outside box
-                if p1[0] > self.im.shape[1] - w:  # shape is (h, w), check if label extend beyond right side of image
-                    p1 = self.im.shape[1] - w, p1[1]
-                p2 = p1[0] + w, p1[1] - h if outside else p1[1] + h
-                cv2.rectangle(self.im, p1, p2, color, -1, cv2.LINE_AA)  # filled
-                cv2.putText(
-                    self.im,
-                    label,
-                    (p1[0], p1[1] - 2 if outside else p1[1] + h - 1),
-                    0,
-                    self.sf,
-                    txt_color,
-                    thickness=self.tf,
-                    lineType=cv2.LINE_AA,
-                )
+            draw.text((p1[0], p1[1] - h if outside else p1[1]), label, fill=txt_color, font=self.font)
+    def _draw_on_cv2_image(self, image, box, label, color, txt_color, rotated):
+        """
+        Draws a box and label on an image.
 
-    def masks(self, masks, colors, im_gpu: torch.Tensor = None, alpha: float = 0.5, retina_masks: bool = False):
-        """Plot masks on image.
+        :param image: The image to draw on (should be a NumPy array of type uint8).
+        :param box: A tuple or list of points defining the box. Should be (x1, y1, x2, y2) or a rotated box.
+        :param label: The label text to display.
+        :param color: The color of the box (BGR format).
+        :param txt_color: The color of the label text (BGR format).
+        :param rotated: Whether the box is rotated (not implemented in this example).
+        """
+        # print(image.dtype)
+        image=image.copy()
+        image = image.copy()
+        if image.ndim == 3 and image.shape[-1] != 3:
+            # 如果通道数不是3，则只取前3个通道
+            image = image[..., :3]
+
+        if image.dtype != np.uint8:
+            image = image.astype(np.uint8)
+
+        if rotated:
+            p1 = [int(b) for b in box[0]]
+            cv2.polylines(image, [np.asarray(box.cpu(), dtype=int)], True, color, self.lw) #8 OBB detect bug
+        else:
+            # p1 = (int(box[0]), int(box[1]))
+            # p2 = (int(box[2]), int(box[3]))
+            # Draw the rectangle
+            p1, p2 = (int(box[0]), int(box[1])), (int(box[2]), int(box[3]))
+            cv2.rectangle(image, p1, p2, color, thickness=self.lw, lineType=cv2.LINE_AA)
+
+        if label:
+            # Get text size
+            w, h = cv2.getTextSize(label, cv2.FONT_HERSHEY_SIMPLEX, self.sf, self.tf)[0]
+            h += 3  # Add a bit of padding
+
+            outside = p1[1] >= h
+            if p1[0] > image.shape[1] - w:
+                p1 = (image.shape[1] - w, p1[1])
+
+            p2 = (p1[0] + w, p1[1] - h) if outside else (p1[0] + w, p1[1] + h)
+
+            # Draw background rectangle for text
+            cv2.rectangle(image, p1, p2, color, thickness=-1, lineType=cv2.LINE_AA)
+
+            # Draw the text
+            cv2.putText(
+                image,
+                label,
+                (p1[0], p1[1] - 2 if outside else p1[1] + h - 1),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                self.sf,
+                txt_color,
+                thickness=self.tf,
+                lineType=cv2.LINE_AA
+            )
+        return  image
+    # -----------------------------RGBT修改-----------------------------end
+
+
+
+
+    # -----------------------------RGBT修改-----------------------------start
+    def masks(self, masks, colors, im_gpu, alpha=0.5, retina_masks=False):
+        """
+        Plot masks on image.
 
         Args:
-            masks (torch.Tensor | np.ndarray): Predicted masks with shape: [n, h, w]
-            colors (list[list[int]]): Colors for predicted masks, [[r, g, b] * n]
-            im_gpu (torch.Tensor | None): Image is in cuda, shape: [3, h, w], range: [0, 1]
-            alpha (float, optional): Mask transparency: 0.0 fully transparent, 1.0 opaque.
-            retina_masks (bool, optional): Whether to use high resolution masks or not.
+            masks (tensor): Predicted masks on cuda, shape: [n, h, w]
+            colors (List[List[Int]]): Colors for predicted masks, [[r, g, b] * n]
+            im_gpu (tensor): Image is in cuda, shape: [3, h, w], range: [0, 1]
+            alpha (float): Mask transparency: 0.0 fully transparent, 1.0 opaque
+            retina_masks (bool): Whether to use high resolution masks or not. Defaults to False.
         """
+        # print(self.im.shape)
+        # print(im_gpu.shape)
         if self.pil:
             # Convert to numpy first
             self.im = np.asarray(self.im).copy()
-        if im_gpu is None:
-            assert isinstance(masks, np.ndarray), "`masks` must be a np.ndarray if `im_gpu` is not provided."
-            overlay = self.im.copy()
-            for i, mask in enumerate(masks):
-                overlay[mask.astype(bool)] = colors[i]
-            self.im = cv2.addWeighted(self.im, 1 - alpha, overlay, alpha, 0)
-        else:
-            assert isinstance(masks, torch.Tensor), "'masks' must be a torch.Tensor if 'im_gpu' is provided."
-            if len(masks) == 0:
-                self.im[:] = im_gpu.permute(1, 2, 0).contiguous().cpu().numpy() * 255
-                return
-            if im_gpu.device != masks.device:
-                im_gpu = im_gpu.to(masks.device)
 
-            ih, iw = self.im.shape[:2]
-            if not retina_masks:
-                # Use scale_masks to properly remove padding and upsample, convert bool to float first
-                masks = ops.scale_masks(masks[None].float(), (ih, iw))[0] > 0.5
-                # Convert original BGR image to RGB tensor
-                im_gpu = (
-                    torch.from_numpy(self.im).to(masks.device).permute(2, 0, 1).flip(0).contiguous().float() / 255.0
-                )
+        # 扩展 im_gpu 的通道数
+        if len(im_gpu.shape)>2 and im_gpu.shape[0] == 4:
+            # 将 4 通道图像扩展为 6 通道，5 和 6 通道与第 4 通道相同
+            im_gpu = torch.cat([im_gpu, im_gpu[3:4, :, :], im_gpu[3:4, :, :]], dim=0)
+        elif len(im_gpu.shape)==2:
+            # 将 1 通道图像扩展为 3 通道，1 和 2 通道与第 3 通道相同
+            im_gpu = torch.cat([im_gpu, im_gpu, im_gpu], dim=0)
 
-            colors = torch.tensor(colors, device=masks.device, dtype=torch.float32) / 255.0  # shape(n,3)
-            colors = colors[:, None, None]  # shape(n,1,1,3)
-            masks = masks.unsqueeze(3)  # shape(n,h,w,1)
-            masks_color = masks * (colors * alpha)  # shape(n,h,w,3)
-            inv_alpha_masks = (1 - masks * alpha).cumprod(0)  # shape(n,h,w,1)
-            mcs = masks_color.max(dim=0).values  # shape(h,w,3)
+        if len(masks) == 0:
+            self.im[:] = im_gpu.permute(1, 2, 0).contiguous().cpu().numpy() * 255
+        if im_gpu.device != masks.device:
+            im_gpu = im_gpu.to(masks.device)
+        colors = torch.tensor(colors, device=masks.device, dtype=torch.float32) / 255.0  # shape(n,3)
+        colors = colors[:, None, None]  # shape(n,1,1,3)
+        masks = masks.unsqueeze(3)  # shape(n,h,w,1)
+        masks_color = masks * (colors * alpha)  # shape(n,h,w,3)
 
-            im_gpu = im_gpu.flip(dims=[0]).permute(1, 2, 0).contiguous()  # shape(h,w,3)
+        inv_alpha_masks = (1 - masks * alpha).cumprod(0)  # shape(n,h,w,1)
+        mcs = masks_color.max(dim=0).values  # shape(n,h,w,3)
+        # print("im_gpu.shape=",im_gpu.shape)
+        # 处理 im_gpu（6 通道和 3 通道）
+        if im_gpu.shape[0] == 6:
+            # 分离 6 通道为两个 3 通道图像
+            rgb1 = im_gpu[:3, :, :].flip(dims=[0])  # 取前3通道并翻转
+            rgb2 = im_gpu[3:, :, :].flip(dims=[0])  # 取后3通道并翻转
+
+            # 对每个通道分别进行处理
+            rgb1 = rgb1.permute(1, 2, 0).contiguous()  # shape(h, w, 3)
+            rgb2 = rgb2.permute(1, 2, 0).contiguous()  # shape(h, w, 3)
+
+            # 分别应用 alpha 和 mask
+            rgb1 = rgb1 * inv_alpha_masks[-1] + mcs
+            rgb2 = rgb2 * inv_alpha_masks[-1] + mcs
+
+            # 合并两部分
+            # im_gpu = torch.cat([rgb1.unsqueeze(0), rgb2.unsqueeze(0)], dim=0).flip(dims=[0])  # shape(6, h, w)
+            im_gpu = torch.cat([rgb1, rgb2], dim=-1)  # 结果是 ( w,h,6)
+
+        elif im_gpu.shape[0] == 3:
+            # 对 3 通道图像进行处理
+            im_gpu = im_gpu.flip(dims=[0])  # flip channel
+            im_gpu = im_gpu.permute(1, 2, 0).contiguous()  # shape(h, w, 3)
             im_gpu = im_gpu * inv_alpha_masks[-1] + mcs
-            self.im[:] = (im_gpu * 255).byte().cpu().numpy()
-        if self.pil:
-            # Convert im back to PIL and update draw
-            self.fromarray(self.im)
 
-    def kpts(
-        self,
-        kpts,
-        shape: tuple = (640, 640),
-        radius: int | None = None,
-        kpt_line: bool = True,
-        conf_thres: float = 0.25,
-        kpt_color: tuple | None = None,
-    ):
-        """Plot keypoints on the image.
+
+        # 转换回 numpy 格式，处理图像并应用 mask
+        im_mask = im_gpu * 255
+        im_mask_np = im_mask.byte().cpu().numpy()
+        # print("im_mask_np.shape=", im_mask_np.shape)
+        # 更新 im
+        self.im[:] = im_mask_np if retina_masks else ops.scale_image(im_mask_np, self.im.shape)
+    # -----------------------------RGBT修改-----------------------------end
+    # def masks(self, masks, colors, im_gpu: torch.Tensor = None, alpha: float = 0.5, retina_masks: bool = False):
+    #     """Plot masks on image.
+    #
+    #     Args:
+    #         masks (torch.Tensor | np.ndarray): Predicted masks with shape: [n, h, w]
+    #         colors (list[list[int]]): Colors for predicted masks, [[r, g, b] * n]
+    #         im_gpu (torch.Tensor | None): Image is in cuda, shape: [3, h, w], range: [0, 1]
+    #         alpha (float, optional): Mask transparency: 0.0 fully transparent, 1.0 opaque.
+    #         retina_masks (bool, optional): Whether to use high resolution masks or not.
+    #     """
+    #     if self.pil:
+    #         # Convert to numpy first
+    #         self.im = np.asarray(self.im).copy()
+    #     if im_gpu is None:
+    #         assert isinstance(masks, np.ndarray), "`masks` must be a np.ndarray if `im_gpu` is not provided."
+    #         overlay = self.im.copy()
+    #         for i, mask in enumerate(masks):
+    #             overlay[mask.astype(bool)] = colors[i]
+    #         self.im = cv2.addWeighted(self.im, 1 - alpha, overlay, alpha, 0)
+    #     else:
+    #         assert isinstance(masks, torch.Tensor), "'masks' must be a torch.Tensor if 'im_gpu' is provided."
+    #         if len(masks) == 0:
+    #             self.im[:] = im_gpu.permute(1, 2, 0).contiguous().cpu().numpy() * 255
+    #             return
+    #         if im_gpu.device != masks.device:
+    #             im_gpu = im_gpu.to(masks.device)
+    #
+    #         ih, iw = self.im.shape[:2]
+    #         if not retina_masks:
+    #             # Use scale_masks to properly remove padding and upsample, convert bool to float first
+    #             masks = ops.scale_masks(masks[None].float(), (ih, iw))[0] > 0.5
+    #             # Convert original BGR image to RGB tensor
+    #             im_gpu = (
+    #                 torch.from_numpy(self.im).to(masks.device).permute(2, 0, 1).flip(0).contiguous().float() / 255.0
+    #             )
+    #
+    #         colors = torch.tensor(colors, device=masks.device, dtype=torch.float32) / 255.0  # shape(n,3)
+    #         colors = colors[:, None, None]  # shape(n,1,1,3)
+    #         masks = masks.unsqueeze(3)  # shape(n,h,w,1)
+    #         masks_color = masks * (colors * alpha)  # shape(n,h,w,3)
+    #         inv_alpha_masks = (1 - masks * alpha).cumprod(0)  # shape(n,h,w,1)
+    #         mcs = masks_color.max(dim=0).values  # shape(h,w,3)
+    #
+    #         im_gpu = im_gpu.flip(dims=[0]).permute(1, 2, 0).contiguous()  # shape(h,w,3)
+    #         im_gpu = im_gpu * inv_alpha_masks[-1] + mcs
+    #         self.im[:] = (im_gpu * 255).byte().cpu().numpy()
+    #     if self.pil:
+    #         # Convert im back to PIL and update draw
+    #         self.fromarray(self.im)
+
+    # -----------------------------RGBT修改-----------------------------start
+    def kpts(self, kpts, shape=(640, 640), radius=5, kpt_line=True, conf_thres=0.25, kpt_color=None):
+        """
+        Plot keypoints on the image.
 
         Args:
-            kpts (torch.Tensor): Keypoints, shape [17, 3] (x, y, confidence).
-            shape (tuple, optional): Image shape (h, w).
-            radius (int, optional): Keypoint radius.
-            kpt_line (bool, optional): Draw lines between keypoints.
-            conf_thres (float, optional): Confidence threshold.
-            kpt_color (tuple, optional): Keypoint color (B, G, R).
+            kpts (tensor): Predicted keypoints with shape [17, 3]. Each keypoint has (x, y, confidence).
+            shape (tuple): Image shape as a tuple (h, w), where h is the height and w is the width.
+            radius (int, optional): Radius of the drawn keypoints. Default is 5.
+            kpt_line (bool, optional): If True, the function will draw lines connecting keypoints
+                                       for human pose. Default is True.
+            kpt_color (tuple, optional): The color of the keypoints (B, G, R).
 
-        Notes:
-            - `kpt_line=True` currently only supports human pose plotting.
-            - Modifies self.im in-place.
-            - If self.pil is True, converts image to numpy array and back to PIL.
+        Note:
+            `kpt_line=True` currently only supports human pose plotting.
         """
-        radius = radius if radius is not None else self.lw
+
         if self.pil:
             # Convert to numpy first
             self.im = np.asarray(self.im).copy()
         nkpt, ndim = kpts.shape
         is_pose = nkpt == 17 and ndim in {2, 3}
+        rgb1 = None
+        rgb2 = None
         kpt_line &= is_pose  # `kpt_line=True` for now only supports human pose plotting
         for i, k in enumerate(kpts):
             color_k = kpt_color or (self.kpt_color[i].tolist() if is_pose else colors(i))
@@ -449,7 +724,15 @@ class Annotator:
                     conf = k[2]
                     if conf < conf_thres:
                         continue
-                cv2.circle(self.im, (int(x_coord), int(y_coord)), radius, color_k, -1, lineType=cv2.LINE_AA)
+                # cv2.circle(self.im, (int(x_coord), int(y_coord)), radius, color_k, -1, lineType=cv2.LINE_AA)
+                if self.im.shape[2] == 6:
+                    rgb1 = self.im[:, :, :3].copy()
+                    rgb2 = self.im[:, :, 3:6].copy()
+                    # print(rgb1.shape)
+                    cv2.circle(rgb1, (int(x_coord), int(y_coord)), radius, color_k, -1, lineType=cv2.LINE_AA)
+                    cv2.circle(rgb2, (int(x_coord), int(y_coord)), radius, color_k, -1, lineType=cv2.LINE_AA)
+                else:
+                    cv2.circle(self.im, (int(x_coord), int(y_coord)), radius, color_k, -1, lineType=cv2.LINE_AA)
 
         if kpt_line:
             ndim = kpts.shape[-1]
@@ -465,17 +748,109 @@ class Annotator:
                     continue
                 if pos2[0] % shape[1] == 0 or pos2[1] % shape[0] == 0 or pos2[0] < 0 or pos2[1] < 0:
                     continue
-                cv2.line(
-                    self.im,
-                    pos1,
-                    pos2,
-                    kpt_color or self.limb_color[i].tolist(),
-                    thickness=int(np.ceil(self.lw / 2)),
-                    lineType=cv2.LINE_AA,
-                )
+
+
+                if self.im.shape[2] == 6:
+                    cv2.line(
+                        rgb1,
+                        pos1,
+                        pos2,
+                        kpt_color or self.limb_color[i].tolist(),
+                        thickness=2,
+                        lineType=cv2.LINE_AA,
+                    )
+                    cv2.line(
+                        rgb2,
+                        pos1,
+                        pos2,
+                        kpt_color or self.limb_color[i].tolist(),
+                        thickness=2,
+                        lineType=cv2.LINE_AA,
+                    )
+                else:
+                    cv2.line(
+                        self.im,
+                        pos1,
+                        pos2,
+                        kpt_color or self.limb_color[i].tolist(),
+                        thickness=2,
+                        lineType=cv2.LINE_AA,
+                    )
+
+        if self.im.shape[2] == 6:
+            im_combined = np.concatenate((rgb1, rgb2), axis=2)
+            self.im = im_combined
+
         if self.pil:
             # Convert im back to PIL and update draw
             self.fromarray(self.im)
+    # -----------------------------RGBT修改-----------------------------end
+    # def kpts(
+    #     self,
+    #     kpts,
+    #     shape: tuple = (640, 640),
+    #     radius: int | None = None,
+    #     kpt_line: bool = True,
+    #     conf_thres: float = 0.25,
+    #     kpt_color: tuple | None = None,
+    # ):
+    #     """Plot keypoints on the image.
+    #
+    #     Args:
+    #         kpts (torch.Tensor): Keypoints, shape [17, 3] (x, y, confidence).
+    #         shape (tuple, optional): Image shape (h, w).
+    #         radius (int, optional): Keypoint radius.
+    #         kpt_line (bool, optional): Draw lines between keypoints.
+    #         conf_thres (float, optional): Confidence threshold.
+    #         kpt_color (tuple, optional): Keypoint color (B, G, R).
+    #
+    #     Notes:
+    #         - `kpt_line=True` currently only supports human pose plotting.
+    #         - Modifies self.im in-place.
+    #         - If self.pil is True, converts image to numpy array and back to PIL.
+    #     """
+    #     radius = radius if radius is not None else self.lw
+    #     if self.pil:
+    #         # Convert to numpy first
+    #         self.im = np.asarray(self.im).copy()
+    #     nkpt, ndim = kpts.shape
+    #     is_pose = nkpt == 17 and ndim in {2, 3}
+    #     kpt_line &= is_pose  # `kpt_line=True` for now only supports human pose plotting
+    #     for i, k in enumerate(kpts):
+    #         color_k = kpt_color or (self.kpt_color[i].tolist() if is_pose else colors(i))
+    #         x_coord, y_coord = k[0], k[1]
+    #         if x_coord % shape[1] != 0 and y_coord % shape[0] != 0:
+    #             if len(k) == 3:
+    #                 conf = k[2]
+    #                 if conf < conf_thres:
+    #                     continue
+    #             cv2.circle(self.im, (int(x_coord), int(y_coord)), radius, color_k, -1, lineType=cv2.LINE_AA)
+    #
+    #     if kpt_line:
+    #         ndim = kpts.shape[-1]
+    #         for i, sk in enumerate(self.skeleton):
+    #             pos1 = (int(kpts[(sk[0] - 1), 0]), int(kpts[(sk[0] - 1), 1]))
+    #             pos2 = (int(kpts[(sk[1] - 1), 0]), int(kpts[(sk[1] - 1), 1]))
+    #             if ndim == 3:
+    #                 conf1 = kpts[(sk[0] - 1), 2]
+    #                 conf2 = kpts[(sk[1] - 1), 2]
+    #                 if conf1 < conf_thres or conf2 < conf_thres:
+    #                     continue
+    #             if pos1[0] % shape[1] == 0 or pos1[1] % shape[0] == 0 or pos1[0] < 0 or pos1[1] < 0:
+    #                 continue
+    #             if pos2[0] % shape[1] == 0 or pos2[1] % shape[0] == 0 or pos2[0] < 0 or pos2[1] < 0:
+    #                 continue
+    #             cv2.line(
+    #                 self.im,
+    #                 pos1,
+    #                 pos2,
+    #                 kpt_color or self.limb_color[i].tolist(),
+    #                 thickness=int(np.ceil(self.lw / 2)),
+    #                 lineType=cv2.LINE_AA,
+    #             )
+    #     if self.pil:
+    #         # Convert im back to PIL and update draw
+    #         self.fromarray(self.im)
 
     def rectangle(self, xy, fill=None, outline=None, width: int = 1):
         """Add rectangle to image (PIL-only)."""
@@ -685,6 +1060,8 @@ def plot_images(
     max_subplots: int = 16,
     save: bool = True,
     conf_thres: float = 0.25,
+    use_simotm="RGBT", # RGBT修改
+    ir_show=False, # RGBT修改
 ) -> np.ndarray | None:
     """Plot image grid with labels, bounding boxes, masks, and keypoints.
 
@@ -748,10 +1125,33 @@ def plot_images(
         images *= 255  # de-normalise (optional)
 
     # Build Image
+    # mosaic = np.full((int(ns * h), int(ns * w), 3), 255, dtype=np.uint8)  # init
+    # for i in range(bs):
+    #     x, y = int(w * (i // ns)), int(h * (i % ns))  # block origin
+    #     mosaic[y : y + h, x : x + w, :] = images[i].transpose(1, 2, 0)
+    # -----------------------------RGBT修改-----------------------------start
     mosaic = np.full((int(ns * h), int(ns * w), 3), 255, dtype=np.uint8)  # init
+    # for i in range(bs):
+    #     x, y = int(w * (i // ns)), int(h * (i % ns))  # block origin
+    #     mosaic[y : y + h, x : x + w, :] = images[i].transpose(1, 2, 0)
     for i in range(bs):
         x, y = int(w * (i // ns)), int(h * (i % ns))  # block origin
-        mosaic[y : y + h, x : x + w, :] = images[i].transpose(1, 2, 0)
+        im = images[i]
+        if (im.shape[0] == 4 or im.shape[0] == 6):
+            # im = im.transpose(1, 2, 0)[:, :, :3]
+            #  'yzc 可以选择IR图像进行显示，在最后一个维度扩充1通道为3通道，如果ir_show为false则显示RGB'
+            if ir_show:
+                im = im.transpose(1, 2, 0)[:, :, 3:]
+                im = im if im.shape[2] == 3 else np.repeat(im, repeats=3, axis=2)
+            else:
+                im = im.transpose(1, 2, 0)[:, :, :3]
+        elif im.shape[0] == 3:
+            im = im.transpose(1, 2, 0)
+        else:
+            im = im.transpose(1, 2, 0)[:, :, :3]  # crop multispectral images to first 3 channels
+        mosaic[y:y + h, x:x + w, :] = im
+        mosaic[y:y + h, x:x + w, :] = im
+    # -----------------------------RGBT修改-----------------------------end
 
     # Resize (optional)
     scale = max_size / ns / max(h, w)
@@ -763,7 +1163,7 @@ def plot_images(
     # Annotate
     fs = int((h + w) * ns * 0.01)  # font size
     fs = max(fs, 18)  # ensure that the font size is large enough to be easily readable.
-    annotator = Annotator(mosaic, line_width=round(fs / 10), font_size=fs, pil=True, example=str(names))
+    annotator = Annotator(mosaic, line_width=round(fs / 10), font_size=fs, pil=True, example=str(names),use_simotm=use_simotm)  # RGBT修改
     for i in range(bs):
         x, y = int(w * (i // ns)), int(h * (i % ns))  # block origin
         annotator.rectangle([x, y, x + w, y + h], None, (255, 255, 255), width=2)  # borders
@@ -793,7 +1193,7 @@ def plot_images(
                     c = names.get(c, c) if names else c
                     if labels or conf[j] > conf_thres:
                         label = f"{c}" if labels else f"{c} {conf[j]:.1f}"
-                        annotator.box_label(box, label, color=color)
+                        annotator.box_label(box, label, color=color, rotated=is_obb, training=True) # RGBT修改
 
             elif len(classes):
                 for c in classes:

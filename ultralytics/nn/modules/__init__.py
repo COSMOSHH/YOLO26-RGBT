@@ -75,6 +75,7 @@ from .conv import (
     LightConv,
     RepConv,
     SpatialAttention,
+    Silence,SilenceChannel,ChannelToNumber,NumberToChannel, #RGBT修改
 )
 from .head import (
     OBB,

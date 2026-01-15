@@ -20,6 +20,53 @@ from ultralytics.utils import DEFAULT_CFG, LOCAL_RANK, LOGGER, NUM_THREADS, TQDM
 from ultralytics.utils.patches import imread
 
 
+#-----------------------------RGBT修改-----------------------------start
+def receptiveField(img, R=3, r=1, fac_r=-1, fac_R=6):
+    # img1 = np.float32(img)
+
+    x, y = np.meshgrid(np.arange(1, R * 2 + 2), np.arange(1, R * 2 + 2))
+    dis = np.sqrt((x - (R + 1)) ** 2 + (y - (R + 1)) ** 2)
+    flag1 = (dis <= r)
+    flag2 = np.logical_and(dis > r, dis <= R)
+    kernal = flag1 * fac_r + flag2 * fac_R
+    # kernal /= kernal.sum()
+    kernal = kernal / kernal.sum()
+    out = cv2.filter2D(img, -1, kernal)
+    return out
+
+
+def SimOTM(img):
+    blur = cv2.blur(img, (3, 3))
+    rec = receptiveField(img)
+    result = cv2.merge([img, blur, rec])
+    return result
+
+def SimOTMBBS(img):
+    blur = cv2.blur(img, (3, 3))
+    result = cv2.merge([img, blur, blur])
+    return result
+
+def SimOTMSSS(img):
+    #  TIF  16 bit
+    result = cv2.merge([img, img, img])
+    return result
+
+def enhance_brightness_or_contrast(image, target_gray_value, brightness_alpha=1.5, contrast_alpha=1.0, beta=0):
+    gray_value = np.mean(image)
+    if gray_value >= target_gray_value:
+        enhanced_image = cv2.convertScaleAbs(image, alpha=contrast_alpha, beta=beta)
+    else:
+        avg_diff = target_gray_value - gray_value
+        enhanced_image = cv2.convertScaleAbs(image, alpha=1.0, beta=avg_diff)
+    return enhanced_image
+
+def SimOTMBrights(img):
+    blur = cv2.blur(img, (3, 3))
+    rec = receptiveField(img)
+    result = cv2.merge([img, blur, rec])
+    return result
+#-----------------------------RGBT修改-----------------------------end
+
 class BaseDataset(Dataset):
     """Base dataset class for loading and processing image data.
 
@@ -85,6 +132,8 @@ class BaseDataset(Dataset):
         classes: list[int] | None = None,
         fraction: float = 1.0,
         channels: int = 3,
+        use_simotm="RGB", # RGBT修改
+        pairs_rgb_ir=['visible', 'infrared'], # RGBT修改
     ):
         """Initialize BaseDataset with given configuration and options.
 
@@ -106,6 +155,7 @@ class BaseDataset(Dataset):
                 OpenCV are in BGR channel order.
         """
         super().__init__()
+        self.use_simotm = use_simotm  # RGBT修改
         self.img_path = img_path
         self.imgsz = imgsz
         self.augment = augment
@@ -207,34 +257,22 @@ class BaseDataset(Dataset):
             if self.single_cls:
                 self.labels[i]["cls"][:, 0] = 0
 
-    def load_image(self, i: int, rect_mode: bool = True) -> tuple[np.ndarray, tuple[int, int], tuple[int, int]]:
-        """Load an image from dataset index 'i'.
-
-        Args:
-            i (int): Index of the image to load.
-            rect_mode (bool): Whether to use rectangular resizing.
-
-        Returns:
-            im (np.ndarray): Loaded image as a NumPy array.
-            hw_original (tuple[int, int]): Original image dimensions in (height, width) format.
-            hw_resized (tuple[int, int]): Resized image dimensions in (height, width) format.
-
-        Raises:
-            FileNotFoundError: If the image file is not found.
-        """
+    # -----------------------------RGBT修改-----------------------------start
+    def load_image(self, i, rect_mode=True):
+        """Loads 1 image from dataset index 'i', returns (im, resized hw)."""
         im, f, fn = self.ims[i], self.im_files[i], self.npy_files[i]
+        pairs_rgb, pairs_ir = self.pairs_rgb_ir
         if im is None:  # not cached in RAM
             if fn.exists():  # load npy
                 try:
                     im = np.load(fn)
                 except Exception as e:
-                    LOGGER.warning(f"{self.prefix}Removing corrupt *.npy image file {fn} due to: {e}")
+                    LOGGER.warning(f"{self.prefix}WARNING ⚠️ Removing corrupt *.npy image file {fn} due to: {e}")
                     Path(fn).unlink(missing_ok=True)
-                    im = imread(f, flags=self.cv2_flag)  # BGR
+                    # im = imread(f,cv2.IMREAD_COLOR)  # BGR
+                    im = self.load_and_preprocess_image(f, use_simotm=self.use_simotm, pairs_rgb=pairs_rgb, pairs_ir=pairs_ir)
             else:  # read image
-                im = imread(f, flags=self.cv2_flag)  # BGR
-            if im is None:
-                raise FileNotFoundError(f"Image Not Found {f}")
+                im = self.load_and_preprocess_image(f, use_simotm=self.use_simotm, pairs_rgb=pairs_rgb, pairs_ir=pairs_ir)
 
             h0, w0 = im.shape[:2]  # orig hw
             if rect_mode:  # resize long side to imgsz while maintaining aspect ratio
@@ -244,8 +282,6 @@ class BaseDataset(Dataset):
                     im = cv2.resize(im, (w, h), interpolation=cv2.INTER_LINEAR)
             elif not (h0 == w0 == self.imgsz):  # resize by stretching image to square imgsz
                 im = cv2.resize(im, (self.imgsz, self.imgsz), interpolation=cv2.INTER_LINEAR)
-            if im.ndim == 2:
-                im = im[..., None]
 
             # Add to buffer if training with augmentations
             if self.augment:
@@ -259,7 +295,63 @@ class BaseDataset(Dataset):
             return im, (h0, w0), im.shape[:2]
 
         return self.ims[i], self.im_hw0[i], self.im_hw[i]
+    # -----------------------------RGBT修改-----------------------------end
+    # def load_image(self, i: int, rect_mode: bool = True) -> tuple[np.ndarray, tuple[int, int], tuple[int, int]]:
+    #     """Load an image from dataset index 'i'.
+    #
+    #     Args:
+    #         i (int): Index of the image to load.
+    #         rect_mode (bool): Whether to use rectangular resizing.
+    #
+    #     Returns:
+    #         im (np.ndarray): Loaded image as a NumPy array.
+    #         hw_original (tuple[int, int]): Original image dimensions in (height, width) format.
+    #         hw_resized (tuple[int, int]): Resized image dimensions in (height, width) format.
+    #
+    #     Raises:
+    #         FileNotFoundError: If the image file is not found.
+    #     """
+    #     im, f, fn = self.ims[i], self.im_files[i], self.npy_files[i]
+    #     if im is None:  # not cached in RAM
+    #         if fn.exists():  # load npy
+    #             try:
+    #                 im = np.load(fn)
+    #             except Exception as e:
+    #                 LOGGER.warning(f"{self.prefix}Removing corrupt *.npy image file {fn} due to: {e}")
+    #                 Path(fn).unlink(missing_ok=True)
+    #                 im = imread(f, flags=self.cv2_flag)  # BGR
+    #         else:  # read image
+    #             im = imread(f, flags=self.cv2_flag)  # BGR
+    #         if im is None:
+    #             raise FileNotFoundError(f"Image Not Found {f}")
+    #
+    #         h0, w0 = im.shape[:2]  # orig hw
+    #         if rect_mode:  # resize long side to imgsz while maintaining aspect ratio
+    #             r = self.imgsz / max(h0, w0)  # ratio
+    #             if r != 1:  # if sizes are not equal
+    #                 w, h = (min(math.ceil(w0 * r), self.imgsz), min(math.ceil(h0 * r), self.imgsz))
+    #                 im = cv2.resize(im, (w, h), interpolation=cv2.INTER_LINEAR)
+    #         elif not (h0 == w0 == self.imgsz):  # resize by stretching image to square imgsz
+    #             im = cv2.resize(im, (self.imgsz, self.imgsz), interpolation=cv2.INTER_LINEAR)
+    #         if im.ndim == 2:
+    #             im = im[..., None]
+    #
+    #         # Add to buffer if training with augmentations
+    #         if self.augment:
+    #             self.ims[i], self.im_hw0[i], self.im_hw[i] = im, (h0, w0), im.shape[:2]  # im, hw_original, hw_resized
+    #             self.buffer.append(i)
+    #             if 1 < len(self.buffer) >= self.max_buffer_length:  # prevent empty buffer
+    #                 j = self.buffer.pop(0)
+    #                 if self.cache != "ram":
+    #                     self.ims[j], self.im_hw0[j], self.im_hw[j] = None, None, None
+    #
+    #         return im, (h0, w0), im.shape[:2]
+    #
+    #     return self.ims[i], self.im_hw0[i], self.im_hw[i]
+    # -----------------------------RGBT修改-----------------------------start
 
+
+    # -----------------------------RGBT修改-----------------------------end
     def cache_images(self) -> None:
         """Cache images to memory or disk for faster training."""
         b, gb = 0, 1 << 30  # bytes of cached images, bytes per gigabytes

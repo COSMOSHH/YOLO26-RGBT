@@ -74,7 +74,7 @@ class DetectionTrainer(BaseTrainer):
             (Dataset): YOLO dataset object configured for the specified mode.
         """
         gs = max(int(unwrap_model(self.model).stride.max() if self.model else 0), 32)
-        return build_yolo_dataset(self.args, img_path, batch, self.data, mode=mode, rect=mode == "val", stride=gs)
+        return build_yolo_dataset(self.args, img_path, batch, self.data, mode=mode, rect=mode == "val", stride=gs, use_simotm=self.args.use_simotm,pairs_rgb_ir=self.args.pairs_rgb_ir)# RGBT 修改
 
     def get_dataloader(self, dataset_path: str, batch_size: int = 16, rank: int = 0, mode: str = "train"):
         """Construct and return dataloader for the specified mode.
@@ -207,6 +207,7 @@ class DetectionTrainer(BaseTrainer):
             paths=batch["im_file"],
             fname=self.save_dir / f"train_batch{ni}.jpg",
             on_plot=self.on_plot,
+            use_simotm=self.args.use_simotm, # RGBT 修改
         )
 
     def plot_training_labels(self):

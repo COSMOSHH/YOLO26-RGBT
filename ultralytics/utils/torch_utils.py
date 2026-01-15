@@ -426,20 +426,12 @@ def get_flops(model, imgsz=640):
     except Exception:
         return 0.0
 
-
+#-----------------------------RGBT修改-----------------------------start
 def get_flops_with_torch_profiler(model, imgsz=640):
-    """Compute model FLOPs using torch profiler (alternative to thop package, but 2-10x slower).
-
-    Args:
-        model (nn.Module): The model to calculate FLOPs for.
-        imgsz (int | list, optional): Input image size.
-
-    Returns:
-        (float): The model's FLOPs in billions.
-    """
+    """Compute model FLOPs (thop package alternative, but 2-10x slower unfortunately)."""
     if not TORCH_2_0:  # torch profiler implemented in torch>=2.0
         return 0.0
-    model = unwrap_model(model)
+    model = de_parallel(model)
     p = next(model.parameters())
     if not isinstance(imgsz, list):
         imgsz = [imgsz, imgsz]  # expand if int/float
@@ -458,6 +450,42 @@ def get_flops_with_torch_profiler(model, imgsz=640):
             model(im)
         flops = sum(x.flops for x in prof.key_averages()) / 1e9
     return flops
+
+def de_parallel(model):
+    """De-parallelize a model: returns single-GPU model if model is of type DP or DDP."""
+    return model.module if is_parallel(model) else model
+#-----------------------------RGBT修改-----------------------------end
+# def get_flops_with_torch_profiler(model, imgsz=640):
+#     """Compute model FLOPs using torch profiler (alternative to thop package, but 2-10x slower).
+#
+#     Args:
+#         model (nn.Module): The model to calculate FLOPs for.
+#         imgsz (int | list, optional): Input image size.
+#
+#     Returns:
+#         (float): The model's FLOPs in billions.
+#     """
+#     if not TORCH_2_0:  # torch profiler implemented in torch>=2.0
+#         return 0.0
+#     model = unwrap_model(model)
+#     p = next(model.parameters())
+#     if not isinstance(imgsz, list):
+#         imgsz = [imgsz, imgsz]  # expand if int/float
+#     try:
+#         # Use stride size for input tensor
+#         stride = (max(int(model.stride.max()), 32) if hasattr(model, "stride") else 32) * 2  # max stride
+#         im = torch.empty((1, p.shape[1], stride, stride), device=p.device)  # input image in BCHW format
+#         with torch.profiler.profile(with_flops=True) as prof:
+#             model(im)
+#         flops = sum(x.flops for x in prof.key_averages()) / 1e9
+#         flops = flops * imgsz[0] / stride * imgsz[1] / stride  # 640x640 GFLOPs
+#     except Exception:
+#         # Use actual image size for input tensor (i.e. required for RTDETR models)
+#         im = torch.empty((1, p.shape[1], *imgsz), device=p.device)  # input image in BCHW format
+#         with torch.profiler.profile(with_flops=True) as prof:
+#             model(im)
+#         flops = sum(x.flops for x in prof.key_averages()) / 1e9
+#     return flops
 
 
 def initialize_weights(model):

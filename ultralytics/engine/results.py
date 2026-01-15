@@ -459,6 +459,7 @@ class Results(SimpleClass, DataExportMixin):
         filename: str | None = None,
         color_mode: str = "class",
         txt_color: tuple[int, int, int] = (255, 255, 255),
+        use_simotm="RGBT", # RGBT修改
     ) -> np.ndarray:
         """Plot detection results on an input BGR image.
 
@@ -507,6 +508,7 @@ class Results(SimpleClass, DataExportMixin):
             font,
             pil or (pred_probs is not None and show_probs),  # Classify tasks default to pil=True
             example=names,
+            use_simotm=use_simotm, # RGBT修改
         )
 
         # Plot Segment results

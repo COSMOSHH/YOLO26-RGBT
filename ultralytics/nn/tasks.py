@@ -12,6 +12,7 @@ import torch.nn as nn
 
 from ultralytics.nn.autobackend import check_class_names
 from ultralytics.nn.modules import (
+    Silence, SilenceChannel, ChannelToNumber, NumberToChannel,# RGBT修改
     AIFI,
     C1,
     C2,
@@ -1688,6 +1689,14 @@ def parse_model(d, ch, verbose=True):
             c2 = args[0]
             c1 = ch[f]
             args = [*args[1:]]
+        # -----------------------------RGBT修改-----------------------------start
+        elif m is SilenceChannel:
+            c2 = args[1] - args[0]
+        elif m is NumberToChannel:
+            c2 = ch[f] * 2
+        elif m is ChannelToNumber:
+            c2 = 3
+        # -----------------------------RGBT修改-----------------------------end
         else:
             c2 = ch[f]
 
