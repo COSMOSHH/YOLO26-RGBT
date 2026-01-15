@@ -385,7 +385,8 @@ class DetectionModel(BaseModel):
             self.yaml["backbone"][0][2] = "nn.Identity"
 
         # Define model
-        self.yaml["channels"] = ch  # save channels
+        # self.yaml["channels"] = ch  # save channels
+        ch = self.yaml["ch"] = self.yaml.get("ch", ch) # RGBT修改
         if nc and nc != self.yaml["nc"]:
             LOGGER.info(f"Overriding model.yaml nc={self.yaml['nc']} with nc={nc}")
             self.yaml["nc"] = nc  # override YAML value

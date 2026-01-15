@@ -156,6 +156,7 @@ class BaseDataset(Dataset):
         """
         super().__init__()
         self.use_simotm = use_simotm  # RGBT修改
+        self.pairs_rgb_ir = pairs_rgb_ir  # RGBT修改
         self.img_path = img_path
         self.imgsz = imgsz
         self.augment = augment
@@ -258,6 +259,88 @@ class BaseDataset(Dataset):
                 self.labels[i]["cls"][:, 0] = 0
 
     # -----------------------------RGBT修改-----------------------------start
+    def load_and_preprocess_image(self, file_path, use_simotm=None, pairs_rgb=None, pairs_ir=None):
+        if use_simotm is None:
+            use_simotm = self.use_simotm
+
+        if use_simotm == 'Gray2BGR':
+            im = imread(file_path)  # BGR
+        elif use_simotm == 'SimOTM':
+            im = imread(file_path, cv2.IMREAD_GRAYSCALE)  # GRAY
+            im = SimOTM(im)
+        elif use_simotm == 'SimOTMBBS':
+            im = imread(file_path, cv2.IMREAD_GRAYSCALE)  # GRAY
+            im = SimOTMBBS(im)
+        elif use_simotm == 'Gray':
+            im = imread(file_path, cv2.IMREAD_GRAYSCALE)  # GRAY
+        elif use_simotm == 'Gray16bit':
+            im = imread(file_path, cv2.IMREAD_UNCHANGED)  # GRAY
+            im = im.astype(np.float32)
+        elif use_simotm == 'Multispectral':
+            im = imread(file_path, cv2.IMREAD_COLOR)  # Multispectral
+        elif use_simotm == 'Multispectral_16bit':
+            im = imread(file_path, cv2.IMREAD_UNCHANGED)  # Multispectral  16bit
+        elif use_simotm == 'SimOTMSSS':
+            im = imread(file_path, cv2.IMREAD_UNCHANGED)  # TIF 16bit
+            im = im.astype(np.float32)
+            im = SimOTMSSS(im)
+        elif use_simotm == 'RGBT':
+            im_visible = imread(file_path)  # BGR
+            im_infrared = imread(file_path.replace(pairs_rgb, pairs_ir), cv2.IMREAD_GRAYSCALE)  # GRAY
+
+            if im_visible is None or im_infrared is None:
+                raise FileNotFoundError(f"Image Not Found {file_path}")
+
+            im_visible, im_infrared = self._resize_images(im_visible, im_infrared)
+            im = self._merge_channels(im_visible, im_infrared)
+        elif use_simotm == 'RGBRGB6C':
+            im_visible = imread(file_path)  # BGR
+            im_infrared = imread(file_path.replace(pairs_rgb, pairs_ir))  # BGR
+
+            if im_visible is None or im_infrared is None:
+                raise FileNotFoundError(f"Image Not Found {file_path}")
+
+            im_visible, im_infrared = self._resize_images(im_visible, im_infrared)
+            im = self._merge_channels_rgb(im_visible, im_infrared)
+        else:
+            im = imread(file_path, cv2.IMREAD_COLOR)  # BGR
+
+        if im is None:
+            raise FileNotFoundError(f"Image Not Found {file_path}")
+
+        return im
+
+    def _resize_images(self, im_visible, im_infrared):
+        h_vis, w_vis = im_visible.shape[:2]  # orig hw
+        h_inf, w_inf = im_infrared.shape[:2]  # orig hw
+
+        if h_vis != h_inf or w_vis != w_inf:
+            r_vis = self.imgsz / max(h_vis, w_vis)  # ratio
+            r_inf = self.imgsz / max(h_inf, w_inf)  # ratio
+
+            if r_vis != 1:  # if sizes are not equal
+                interp = cv2.INTER_LINEAR if (self.augment or r_vis > 1) else cv2.INTER_AREA
+                im_visible = cv2.resize(im_visible, (
+                min(math.ceil(w_vis * r_vis), self.imgsz), min(math.ceil(h_vis * r_vis), self.imgsz)),
+                                        interpolation=interp)
+            if r_inf != 1:  # if sizes are not equal
+                interp = cv2.INTER_LINEAR if (self.augment or r_inf > 1) else cv2.INTER_AREA
+                im_infrared = cv2.resize(im_infrared, (
+                min(math.ceil(w_inf * r_inf), self.imgsz), min(math.ceil(h_inf * r_inf), self.imgsz)),
+                                         interpolation=interp)
+        return im_visible, im_infrared
+
+    def _merge_channels(self, im_visible, im_infrared):
+        b, g, r = cv2.split(im_visible)
+        im = cv2.merge((b, g, r, im_infrared))
+        return im
+
+    def _merge_channels_rgb(self, im_visible, im_infrared):
+        b, g, r = cv2.split(im_visible)
+        b2, g2, r2 = cv2.split(im_infrared)
+        im = cv2.merge((b, g, r, b2, g2, r2))
+        return im
+
     def load_image(self, i, rect_mode=True):
         """Loads 1 image from dataset index 'i', returns (im, resized hw)."""
         im, f, fn = self.ims[i], self.im_files[i], self.npy_files[i]
@@ -348,10 +431,7 @@ class BaseDataset(Dataset):
     #         return im, (h0, w0), im.shape[:2]
     #
     #     return self.ims[i], self.im_hw0[i], self.im_hw[i]
-    # -----------------------------RGBT修改-----------------------------start
 
-
-    # -----------------------------RGBT修改-----------------------------end
     def cache_images(self) -> None:
         """Cache images to memory or disk for faster training."""
         b, gb = 0, 1 << 30  # bytes of cached images, bytes per gigabytes
@@ -368,11 +448,20 @@ class BaseDataset(Dataset):
                 pbar.desc = f"{self.prefix}Caching images ({b / gb:.1f}GB {storage})"
             pbar.close()
 
-    def cache_images_to_disk(self, i: int) -> None:
-        """Save an image as an *.npy file for faster loading."""
+    # -----------------------------RGBT修改-----------------------------start
+    def cache_images_to_disk(self, i):
+        """Saves an image as an *.npy file for faster loading."""
         f = self.npy_files[i]
         if not f.exists():
-            np.save(f.as_posix(), imread(self.im_files[i]), allow_pickle=False)
+            pairs_rgb, pairs_ir = self.pairs_rgb_ir
+            im = self.load_and_preprocess_image(self.im_files[i], use_simotm=self.use_simotm, pairs_rgb=pairs_rgb, pairs_ir=pairs_ir)
+            np.save(f.as_posix(), im, allow_pickle=False)
+    # -----------------------------RGBT修改-----------------------------end
+    # def cache_images_to_disk(self, i: int) -> None:
+    #     """Save an image as an *.npy file for faster loading."""
+    #     f = self.npy_files[i]
+    #     if not f.exists():
+    #         np.save(f.as_posix(), imread(self.im_files[i]), allow_pickle=False)
 
     def check_cache_disk(self, safety_margin: float = 0.5) -> bool:
         """Check if there's enough disk space for caching images.

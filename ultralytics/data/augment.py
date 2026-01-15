@@ -1655,7 +1655,7 @@ class RandomBrightness:
             labels['img'] = img
         return labels
 
-class CopyPaste:
+class CopyPaste_RGBT:
 
     def __init__(self, p=0.5,dtype=np.uint8) -> None:
         self.p = p
@@ -3051,7 +3051,7 @@ def v8_transforms(dataset, imgsz, hyp,stretch=False):
     dtype=np.uint8 if hyp.use_simotm not in {"Gray16bit","Multispectral_16bit"} else np.float32
     pre_transform = Compose([
         Mosaic(dataset, imgsz=imgsz, p=hyp.mosaic,dtype=dtype),
-        CopyPaste(p=hyp.copy_paste,dtype=dtype ),
+        CopyPaste_RGBT(p=hyp.copy_paste,dtype=dtype ),  # RGBT修改CopyPaste方法名称，YOLO26冲突
         RandomPerspective(
             degrees=hyp.degrees,
             translate=hyp.translate,
