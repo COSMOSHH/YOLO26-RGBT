@@ -84,7 +84,7 @@ python my_val_RGBT.py
 
 - [wandahangFY/YOLOv11-RGBT](https://github.com/wandahangFY/YOLOv11-RGBT)
 - [Ultralytics YOLO](https://github.com/ultralytics/ultralytics)
-- 相关论文及技术博客：[YOLOv11-RGBT](https://github.com/wandahangFY/YOLOv11-RGBT)、[https://zhuanlan.zhihu.com/p/716419187?utm_psn=1881311169236681824]
+- 相关论文及技术博客：[https://arxiv.org/abs/2506.14696]、[https://zhuanlan.zhihu.com/p/716419187?utm_psn=1881311169236681824]
 
 ---
 
