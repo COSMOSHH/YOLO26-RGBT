@@ -22,7 +22,8 @@ if __name__ == '__main__':
                 # pairs_rgb_ir=['visible','infrared'] , # default: ['visible','infrared'] , others: ['rgb', 'ir'],  ['images', 'images_ir'], ['images', 'image']
                 use_simotm="RGBT",
                 channels=4,
-                project='E:/files/vscode_file/YOLO/YOLO26-RGBT/runs/rgbt3m_tinyfire_enhance',
-                # project='runs/rgbt3m_tinyfire_enhance',
+                # project='E:/files/vscode_file/YOLO/YOLO26-RGBT/runs/rgbt3m_tinyfire_enhance',
+                # E:\files\vscode_file\YOLO\YOLO26-RGBT\runs\rgbt3m_tinyfire_enhance
+                project='runs/rgbt3m_tinyfire_enhance',
                 name='rgbt3m_tinyfire_enhance-yolo26n-RGBT-midfusion-200epochs-',
                 )
