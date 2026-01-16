@@ -28,8 +28,7 @@ conda install pytorch torchvision torchaudio pytorch-cuda=12.1 -c pytorch -c nvi
 # 安装Ultralytics/YOLO
 pip install ultralytics==8.4.1
 
-# 安装其他依赖
-pip install opencv-python tqdm
+# 安装其他依赖参考[YOLOv11-RGBT](https://github.com/wandahangFY/YOLOv11-RGBT)
 ```
 
 ---
@@ -78,11 +77,6 @@ python my_val_RGBT.py
 
 ---
 
-## 注意事项和常见报错
-
-- 若遇到“expected input to have X channels but got Y channels”等问题，需确保 `channels` 参数与数据实际通道、模型 yaml 的 `ch` 字段一致。
-- 若遇到 `AttributeError: 'YOLODataset' object has no attribute 'load_and_preprocess_image'`，请在 `BaseDataset` 中补充该方法实现。
-- 如需切换为 3/6/8+通道或灰度数据，参考 wandahangFY/YOLOv11-RGBT 仓库和 readme 说明调整参数和脚本。
 
 ---
 
@@ -90,7 +84,7 @@ python my_val_RGBT.py
 
 - [wandahangFY/YOLOv11-RGBT](https://github.com/wandahangFY/YOLOv11-RGBT)
 - [Ultralytics YOLO](https://github.com/ultralytics/ultralytics)
-- 相关论文及技术博客：https://arxiv.org/abs/2506.14696、知乎/CSDN 技术专栏
+- 相关论文及技术博客：[YOLOv11-RGBT](https://github.com/wandahangFY/YOLOv11-RGBT)、[https://zhuanlan.zhihu.com/p/716419187?utm_psn=1881311169236681824]
 
 ---
 
