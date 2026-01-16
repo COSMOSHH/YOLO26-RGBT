@@ -15,6 +15,7 @@ from pathlib import Path
 from typing import Any
 
 import numpy as np
+import thop
 import torch
 import torch.distributed as dist
 import torch.nn as nn
@@ -387,46 +388,73 @@ def model_info_for_loggers(trainer):
     return results
 
 
+# def get_flops(model, imgsz=640):
+#     """Calculate FLOPs (floating point operations) for a model in billions.
+#
+#     Attempts two calculation methods: first with a stride-based tensor for efficiency, then falls back to full image
+#     size if needed (e.g., for RTDETR models). Returns 0.0 if thop library is unavailable or calculation fails.
+#
+#     Args:
+#         model (nn.Module): The model to calculate FLOPs for.
+#         imgsz (int | list, optional): Input image size.
+#
+#     Returns:
+#         (float): The model FLOPs in billions.
+#     """
+#     try:
+#         import thop
+#     except ImportError:
+#         thop = None  # conda support without 'ultralytics-thop' installed
+#
+#     if not thop:
+#         return 0.0  # if not installed return 0.0 GFLOPs
+#
+#     try:
+#         model = unwrap_model(model)
+#         p = next(model.parameters())
+#         if not isinstance(imgsz, list):
+#             imgsz = [imgsz, imgsz]  # expand if int/float
+#         try:
+#             # Method 1: Use stride-based input tensor
+#             stride = max(int(model.stride.max()), 32) if hasattr(model, "stride") else 32  # max stride
+#             im = torch.empty((1, p.shape[1], stride, stride), device=p.device)  # input image in BCHW format
+#             flops = thop.profile(deepcopy(model), inputs=[im], verbose=False)[0] / 1e9 * 2  # stride GFLOPs
+#             return flops * imgsz[0] / stride * imgsz[1] / stride  # imgsz GFLOPs
+#         except Exception:
+#             # Method 2: Use actual image size (required for RTDETR models)
+#             im = torch.empty((1, p.shape[1], *imgsz), device=p.device)  # input image in BCHW format
+#             return thop.profile(deepcopy(model), inputs=[im], verbose=False)[0] / 1e9 * 2  # imgsz GFLOPs
+#     except Exception:
+#         return 0.0
+
+#-----------------------------RGBT修改-----------------------------start
 def get_flops(model, imgsz=640):
-    """Calculate FLOPs (floating point operations) for a model in billions.
-
-    Attempts two calculation methods: first with a stride-based tensor for efficiency, then falls back to full image
-    size if needed (e.g., for RTDETR models). Returns 0.0 if thop library is unavailable or calculation fails.
-
-    Args:
-        model (nn.Module): The model to calculate FLOPs for.
-        imgsz (int | list, optional): Input image size.
-
-    Returns:
-        (float): The model FLOPs in billions.
-    """
-    try:
-        import thop
-    except ImportError:
-        thop = None  # conda support without 'ultralytics-thop' installed
-
+    """Return a YOLO model's FLOPs."""
     if not thop:
         return 0.0  # if not installed return 0.0 GFLOPs
 
     try:
-        model = unwrap_model(model)
+        model = de_parallel(model)
         p = next(model.parameters())
+        ch = int(model.yaml['ch'])
+        imgsz = model.args['imgsz'] if hasattr(model, 'args') else imgsz
         if not isinstance(imgsz, list):
             imgsz = [imgsz, imgsz]  # expand if int/float
         try:
-            # Method 1: Use stride-based input tensor
+            # Use stride size for input tensor
             stride = max(int(model.stride.max()), 32) if hasattr(model, "stride") else 32  # max stride
-            im = torch.empty((1, p.shape[1], stride, stride), device=p.device)  # input image in BCHW format
+            # im = torch.empty((1, p.shape[1], stride, stride), device=p.device)  # input image in BCHW format
+            im = torch.empty((1, ch, stride, stride), device=p.device)  # input image in BCHW format
             flops = thop.profile(deepcopy(model), inputs=[im], verbose=False)[0] / 1e9 * 2  # stride GFLOPs
             return flops * imgsz[0] / stride * imgsz[1] / stride  # imgsz GFLOPs
         except Exception:
-            # Method 2: Use actual image size (required for RTDETR models)
-            im = torch.empty((1, p.shape[1], *imgsz), device=p.device)  # input image in BCHW format
+            # Use actual image size for input tensor (i.e. required for RTDETR models)
+            # im = torch.empty((1, p.shape[1], *imgsz), device=p.device)  # input image in BCHW format
+            im = torch.empty((1, ch, *imgsz), device=p.device)  # input image in BCHW format
             return thop.profile(deepcopy(model), inputs=[im], verbose=False)[0] / 1e9 * 2  # imgsz GFLOPs
     except Exception:
         return 0.0
 
-#-----------------------------RGBT修改-----------------------------start
 def get_flops_with_torch_profiler(model, imgsz=640):
     """Compute model FLOPs (thop package alternative, but 2-10x slower unfortunately)."""
     if not TORCH_2_0:  # torch profiler implemented in torch>=2.0
@@ -659,7 +687,7 @@ class ModelEMA:
             tau (int, optional): EMA decay time constant.
             updates (int, optional): Initial number of updates.
         """
-        self.ema = deepcopy(unwrap_model(model)).eval()  # FP32 EMA
+        self.ema = deepcopy(de_parallel(model)).eval()  # FP32 EMA  #RGBT修改 unwrap_model改为de_parallel
         self.updates = updates  # number of EMA updates
         self.decay = lambda x: decay * (1 - math.exp(-x / tau))  # decay exponential ramp (to help early epochs)
         for p in self.ema.parameters():
@@ -676,7 +704,7 @@ class ModelEMA:
             self.updates += 1
             d = self.decay(self.updates)
 
-            msd = unwrap_model(model).state_dict()  # model state_dict
+            msd = de_parallel(model).state_dict()  # model state_dict  #RGBT修改 unwrap_model改为de_parallel
             for k, v in self.ema.state_dict().items():
                 if v.dtype.is_floating_point:  # true for FP16 and FP32
                     v *= d
